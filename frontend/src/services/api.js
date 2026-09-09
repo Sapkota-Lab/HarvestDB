@@ -42,6 +42,23 @@ export async function createHarvestRecord(harvestEventId, payload) {
   return response.json();
 }
 
+export async function uploadHarvestRecordsCsv(harvestEventId, file) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch(`${API_BASE_URL}/harvest-records/upload?harvest_event_id=${harvestEventId}`, {
+    method: "POST",
+    body: formData
+  });
+
+  if (!response.ok) {
+    const detail = await response.json().catch(() => null);
+    throw new Error(detail?.detail || "Failed to upload harvest records CSV");
+  }
+
+  return response.json();
+}
+
 export async function fetchHarvestRecords(harvestEventId) {
   const query = harvestEventId ? `?harvest_event_id=${harvestEventId}` : "";
   const response = await fetch(`${API_BASE_URL}/harvest-records/${query}`);

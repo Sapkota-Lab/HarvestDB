@@ -97,6 +97,17 @@ button.primary {
   overflow-x: auto;
 }
 
+.hint {
+  color: #5a6350;
+  font-size: 0.85rem;
+  margin-top: -0.25rem;
+}
+
+.upload-status {
+  margin-top: 0.6rem;
+  font-size: 0.9rem;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;

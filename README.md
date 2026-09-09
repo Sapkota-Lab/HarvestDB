@@ -124,6 +124,7 @@ Measurement fields are optional so another field can record fewer values without
 - `GET /api/v1/harvests/?field_id={field_id}` (stub)
 - `POST /api/v1/harvest-records/?harvest_event_id={harvest_event_id}` (stub)
 - `GET /api/v1/harvest-records/?harvest_event_id={harvest_event_id}` (stub)
+- `POST /api/v1/harvest-records/upload?harvest_event_id={harvest_event_id}` (CSV bulk import; parses and prints rows, does not persist yet — see issue #3)
 - `GET /api/v1/exports/harvest-records.csv` (placeholder)
 
 ## Architecture Notes
