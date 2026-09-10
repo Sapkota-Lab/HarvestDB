@@ -30,7 +30,7 @@ docker compose version
 
 ## Automated Setup
 
-From the project root, run the shell script in WSL:
+From the project root, run the shell script:
 
 ```bash
 cd /mnt/c/Users/<username>/OneDrive/Desktop/Git/CropCapture
@@ -85,6 +85,8 @@ For easier-to-read output in psql, especially when viewing wide JSON columns, en
 ```
 ## Troubleshooting
 
+### Port 5432 already in use
+
 If another PostgreSQL server is already running locally, Docker may fail to start the test database because port 5432 is already in use.
 
 Check with:
@@ -93,8 +95,7 @@ Check with:
 
 Stop the conflicting PostgreSQL service before starting the Docker test database, or change the Docker host port in `db_testing/docker-compose.yml`
 
-#
-
+### Windows line endings
 If WSL reports errors such as `$'\r': command not found`, the shell script has Windows line endings. Convert it to Unix line endings with:
 
 ```bash
