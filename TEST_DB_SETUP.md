@@ -7,10 +7,14 @@ This project uses Docker to create a local PostgreSQL database for testing. The 
 Install or enable the following before running the setup:
 
 - Docker Desktop
-- WSL (Windows Subsystem for Linux)
-- A WSL distribution, such as Ubuntu
+- Windows Users
+    - WSL (Windows Subsystem for Linux)
+    - A WSL distribution, such as Ubuntu
+- macOS and Linux users do not need WSL
 
-Docker must also be enabled for your WSL distribution:
+## Windows / WSL Setup
+
+Docker must also be enabled for your WSL distribution(Windows Only):
 
 1. Open Docker Desktop.
 2. Go to **Settings > Resources > WSL Integration**.
@@ -63,7 +67,33 @@ The SQL files are stored in the `db_testing` directory:
 
 Normally, you do not need to run these files manually because `TEST_DB_SETUP.sh` runs them in the correct order.
 
+## Connecting to the Test Database
+After the setup script finishes successfully, you can connect to the test database with:
+
+```
+psql -h localhost -p 5432 -U myuser -d testing_db
+```
+
+When prompted, use:
+
+```
+testing_password
+```
+For easier-to-read output in psql, especially when viewing wide JSON columns, enable expanded display:
+```
+\x auto
+```
 ## Troubleshooting
+
+If another PostgreSQL server is already running locally, Docker may fail to start the test database because port 5432 is already in use.
+
+Check with:
+
+    lsof -i :5432
+
+Stop the conflicting PostgreSQL service before starting the Docker test database, or change the Docker host port in `db_testing/docker-compose.yml`
+
+#
 
 If WSL reports errors such as `$'\r': command not found`, the shell script has Windows line endings. Convert it to Unix line endings with:
 
