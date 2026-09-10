@@ -101,13 +101,10 @@ Typical fields:
 
 - `id` (primary key)
 - `harvest_event_id` (foreign key to `HarvestEvent`)
-- `field_name`
-- `year`
-- `record_date`
 - `plot_number`
 - `dynamic_data` (PostgreSQL `JSONB` for year- or plot-specific measurements)
 
-The four identifying fields are typed columns so they can be indexed and filtered efficiently. Measurement fields belong in `dynamic_data`, allowing collection templates to change without a schema change. Existing databases need a migration that adds the four identifying columns, creates the `dynamic_data` JSONB column, and removes or backfills the old measurement columns.
+The harvest event supplies the field and harvest date, while each record identifies its plot. Measurement fields belong in `dynamic_data`, allowing collection templates to change without a schema change. Existing databases need a migration to remove the redundant `field_name`, `year`, and `record_date` columns if they already exist.
 
 ## Current Skeleton Endpoints
 
