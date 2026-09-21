@@ -43,8 +43,8 @@ psql() {
 		"$@"
 }
 
-echo "Resetting the test table..."
-psql -c 'DROP TABLE IF EXISTS testDB;'
+echo "Resetting the test tables..."
+psql -c 'DROP TABLE IF EXISTS harvest_records, harvest_events, fields CASCADE;'
 
 echo "Initializing the database..."
 psql < "$DB_TESTING_DIR/initializeDB.sql"
