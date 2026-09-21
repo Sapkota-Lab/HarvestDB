@@ -3,10 +3,10 @@ import io
 import json
 
 from fastapi.testclient import TestClient
-
+from app.db.session import get_test_db, get_db
 from app.main import app
 
-
+app.dependency_overrides[get_db] = get_test_db #overide the get_db dependency with the get_test_db dependency for testing
 client = TestClient(app)
 
 
@@ -42,14 +42,14 @@ def test_export_json_data_is_valid() -> None:
 
     assert response.status_code == 200
 
-    print("\nRAW CSV:")
-    print(response.text)
-
     reader = csv.DictReader(io.StringIO(response.text))
     rows = list(reader)
 
-    print("\nFIRST ROW:")
-    print(rows[0])
-
     assert len(rows) > 0
     assert rows[0]["dynamic_harvest_data"] is not None
+    
+    dynamic_data = json.loads(
+        rows[0]["dynamic_harvest_data"]
+    )
+
+    assert isinstance(dynamic_data, dict)
