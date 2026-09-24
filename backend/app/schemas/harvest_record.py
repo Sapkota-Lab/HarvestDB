@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -15,3 +15,8 @@ class HarvestRecordRead(HarvestRecordCreate):
     id: int
     harvest_event_id: int
     created_at: datetime | None = None
+
+
+class HarvestRecordQueryRead(HarvestRecordRead):
+    field_name: str
+    harvest_date: date

@@ -4,9 +4,10 @@ import io
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
+from app.models.field import Field
 from app.models.harvest_record import HarvestRecord
 from app.models.harvest_event import HarvestEvent
-from app.schemas.harvest_record import HarvestRecordCreate, HarvestRecordRead
+from app.schemas.harvest_record import HarvestRecordCreate, HarvestRecordQueryRead, HarvestRecordRead
 from app.schemas.harvest_record_filter import HarvestRecordFilter
 
 
@@ -48,21 +49,23 @@ class CropService:
 
     # has to stay below import_csv — a method named `list` shadows the builtin `list`,
     # which breaks the `list[...]` type hints on anything defined after it in this class
-    def list(self, db: Session, filters: HarvestRecordFilter) -> tuple[list[HarvestRecordRead], int]:
+    def list(self, db: Session, filters: HarvestRecordFilter) -> tuple[list[HarvestRecordQueryRead], int]:
         """
         Query harvest records with filters and pagination.
         
         Returns:
             Tuple of (records, total_count)
         """
-        query = db.query(HarvestRecord)
+        query = (
+            db.query(HarvestRecord, HarvestEvent.harvest_date, Field.name.label("field_name"))
+            .select_from(HarvestRecord)
+            .join(HarvestEvent, HarvestRecord.harvest_event_id == HarvestEvent.id)
+            .join(Field, HarvestEvent.field_id == Field.id)
+        )
 
         # Filter by harvest event
         if filters.harvest_event_id is not None:
             query = query.filter(HarvestRecord.harvest_event_id == filters.harvest_event_id)
-
-        if filters.field_id is not None or filters.harvest_date_from is not None or filters.harvest_date_to is not None:
-            query = query.join(HarvestEvent)
 
         # Filter by field
         if filters.field_id is not None:
@@ -86,7 +89,14 @@ class CropService:
         offset = (filters.page - 1) * filters.page_size
         records = query.offset(offset).limit(filters.page_size).all()
 
-        return [HarvestRecordRead.model_validate(r) for r in records], total_count
+        return [
+            HarvestRecordQueryRead(
+                **HarvestRecordRead.model_validate(record).model_dump(),
+                harvest_date=harvest_date,
+                field_name=field_name,
+            )
+            for record, harvest_date, field_name in records
+        ], total_count
 
 
 def _clean_row(row: dict) -> dict:

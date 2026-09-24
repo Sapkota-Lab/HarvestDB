@@ -18,6 +18,8 @@ export default function CropTable({ rows, total, page, totalPages, onPageChange 
         <thead>
           <tr>
             <th>ID</th>
+            <th>Field</th>
+            <th>Harvest Date</th>
             <th>Harvest Event</th>
             <th>Plot Number</th>
             <th>Dynamic Fields</th>
@@ -26,12 +28,14 @@ export default function CropTable({ rows, total, page, totalPages, onPageChange 
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan="4">No records yet.</td>
+              <td colSpan="6">No records yet.</td>
             </tr>
           ) : (
             rows.map((row) => (
               <tr key={row.id}>
                 <td>{row.id}</td>
+                <td>{row.field_name}</td>
+                <td>{row.harvest_date}</td>
                 <td>{row.harvest_event_id}</td>
                 <td>{row.plot_number}</td>
                 <td>
