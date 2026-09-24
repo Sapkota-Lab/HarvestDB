@@ -1,3 +1,15 @@
+function formatFieldLabel(fieldName) {
+  return fieldName.replace(/_/g, " ").replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function formatFieldValue(value) {
+  if (value === null || value === undefined || value === "") {
+    return "-";
+  }
+
+  return typeof value === "object" ? JSON.stringify(value) : String(value);
+}
+
 export default function CropTable({ rows, total, page, totalPages, onPageChange }) {
   return (
     <div className="panel table-wrap">
@@ -22,7 +34,16 @@ export default function CropTable({ rows, total, page, totalPages, onPageChange 
                 <td>{row.id}</td>
                 <td>{row.harvest_event_id}</td>
                 <td>{row.plot_number}</td>
-                <td>{JSON.stringify(row.dynamic_data)}</td>
+                <td>
+                  <dl className="dynamic-fields">
+                    {Object.entries(row.dynamic_data || {}).map(([fieldName, value]) => (
+                      <div key={fieldName}>
+                        <dt>{formatFieldLabel(fieldName)}</dt>
+                        <dd>{formatFieldValue(value)}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </td>
               </tr>
             ))
           )}

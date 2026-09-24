@@ -118,6 +118,34 @@ td {
   padding: 0.6rem;
   border-bottom: 1px solid var(--line);
   text-align: left;
+  vertical-align: top;
+}
+
+.dynamic-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(150px, 1fr));
+  gap: 0.35rem 1rem;
+  margin: 0;
+  min-width: 420px;
+}
+
+.dynamic-fields div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.5rem;
+  align-items: baseline;
+}
+
+.dynamic-fields dt {
+  color: #5a6350;
+  font-size: 0.8rem;
+}
+
+.dynamic-fields dd {
+  margin: 0;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 400;
 }
 
 .filter-form {
