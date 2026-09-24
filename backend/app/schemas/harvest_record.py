@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class HarvestRecordCreate(BaseModel):
@@ -10,6 +10,8 @@ class HarvestRecordCreate(BaseModel):
 
 
 class HarvestRecordRead(HarvestRecordCreate):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     harvest_event_id: int
     created_at: datetime | None = None

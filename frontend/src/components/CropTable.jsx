@@ -1,4 +1,4 @@
-export default function CropTable({ rows }) {
+export default function CropTable({ rows, total, page, totalPages, onPageChange }) {
   return (
     <div className="panel table-wrap">
       <h2>Harvest Records</h2>
@@ -28,6 +28,33 @@ export default function CropTable({ rows }) {
           )}
         </tbody>
       </table>
+      {total > 0 && (
+        <div className="pagination">
+          <p>
+            Showing {rows.length > 0 ? (page - 1) * rows.length + 1 : 0} to{" "}
+            {Math.min(page * rows.length, total)} of {total} records
+          </p>
+          <div className="pagination-controls">
+            <button
+              onClick={() => onPageChange(page - 1)}
+              disabled={page === 1}
+              type="button"
+            >
+              Previous
+            </button>
+            <span>
+              Page {page} of {totalPages}
+            </span>
+            <button
+              onClick={() => onPageChange(page + 1)}
+              disabled={page === totalPages}
+              type="button"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
