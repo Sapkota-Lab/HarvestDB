@@ -8,7 +8,19 @@ from sqlalchemy.orm import Session
 class ExportService:
     def harvest_records_as_csv(self, db: Session) -> str:
         result = db.execute(
-            text("SELECT * FROM testdb ORDER BY record_id")
+            text(""" 
+            SELECT
+                fields.name AS field_name,
+                harvest_events.harvest_date,
+                harvest_events.harvest_number,
+                harvest_records.id AS record_id,
+                harvest_records.plot_number,
+                harvest_records.dynamic_data
+            FROM harvest_records
+            JOIN harvest_events ON harvest_events.id = harvest_records.harvest_event_id
+            JOIN fields ON fields.id = harvest_events.field_id
+            ORDER BY harvest_events.harvest_date DESC, harvest_records.id;
+            """)
         )
         rows = result.fetchall()
         columns = result.keys()
