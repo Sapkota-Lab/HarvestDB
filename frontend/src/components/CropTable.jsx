@@ -10,7 +10,7 @@ function formatFieldValue(value) {
   return typeof value === "object" ? JSON.stringify(value) : String(value);
 }
 
-export default function CropTable({ rows, total, page, totalPages, onPageChange }) {
+export default function CropTable({ rows, total, page, pageSize, totalPages, onPageChange }) {
   return (
     <div className="panel table-wrap">
       <h2>Harvest Records</h2>
@@ -56,8 +56,8 @@ export default function CropTable({ rows, total, page, totalPages, onPageChange 
       {total > 0 && (
         <div className="pagination">
           <p>
-            Showing {rows.length > 0 ? (page - 1) * rows.length + 1 : 0} to{" "}
-            {Math.min(page * rows.length, total)} of {total} records
+            Showing {rows.length > 0 ? (page - 1) * pageSize + 1 : 0} to{" "}
+            {Math.min(page * pageSize, total)} of {total} records
           </p>
           <div className="pagination-controls">
             <button

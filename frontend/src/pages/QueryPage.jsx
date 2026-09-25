@@ -70,6 +70,7 @@ export default function QueryPage() {
           rows={rows}
           total={total}
           page={page}
+          pageSize={filters.page_size}
           totalPages={totalPages}
           onPageChange={handlePageChange}
         />
