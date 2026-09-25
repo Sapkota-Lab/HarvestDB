@@ -93,6 +93,44 @@ button.primary {
   cursor: pointer;
 }
 
+.form-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin-top: 0.85rem;
+}
+
+.form-actions button.primary {
+  margin-top: 0;
+}
+
+.form-actions button:not(.primary) {
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 8px;
+  padding: 0.65rem 1rem;
+  cursor: pointer;
+}
+
+.row-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.row-actions button {
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 8px;
+  padding: 0.35rem 0.7rem;
+  cursor: pointer;
+}
+
+.form-error {
+  color: #8a2f2f;
+  font-size: 0.9rem;
+  margin-top: 0.6rem;
+}
+
 .table-wrap {
   overflow-x: auto;
 }

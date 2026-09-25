@@ -1,12 +1,24 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const INITIAL_FORM = {
   plot_number: "",
   dynamic_data: "{}"
 };
 
-export default function CropRecordForm({ onSubmit }) {
+export default function CropRecordForm({ record, onSubmit, onCancelEdit }) {
   const [form, setForm] = useState(INITIAL_FORM);
+  const isEditing = Boolean(record);
+
+  useEffect(() => {
+    if (record) {
+      setForm({
+        plot_number: record.plot_number ?? "",
+        dynamic_data: JSON.stringify(record.dynamic_data ?? {}, null, 2)
+      });
+    } else {
+      setForm(INITIAL_FORM);
+    }
+  }, [record]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -27,7 +39,7 @@ export default function CropRecordForm({ onSubmit }) {
 
   return (
     <form className="panel" onSubmit={handleSubmit}>
-      <h2>New Harvest Record</h2>
+      <h2>{isEditing ? `Edit Harvest Record #${record.id}` : "New Harvest Record"}</h2>
       <div className="grid">
         <label>
           Plot Number
@@ -38,7 +50,16 @@ export default function CropRecordForm({ onSubmit }) {
           <textarea name="dynamic_data" rows="8" value={form.dynamic_data} onChange={handleChange} />
         </label>
       </div>
-      <button className="primary" type="submit">Save Record</button>
+      <div className="form-actions">
+        <button className="primary" type="submit">
+          {isEditing ? "Update Record" : "Save Record"}
+        </button>
+        {isEditing ? (
+          <button type="button" onClick={onCancelEdit}>
+            Cancel Edit
+          </button>
+        ) : null}
+      </div>
     </form>
   );
 }
