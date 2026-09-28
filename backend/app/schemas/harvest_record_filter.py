@@ -1,5 +1,5 @@
 from datetime import date
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class HarvestRecordFilter(BaseModel):
@@ -12,3 +12,13 @@ class HarvestRecordFilter(BaseModel):
     harvest_date_to: date | None = Field(default=None, description="Filter records up to this harvest date")
     page: int = Field(default=1, ge=1, description="Page number (1-indexed)")
     page_size: int = Field(default=50, ge=1, le=1000, description="Number of records per page")
+
+    @model_validator(mode="after")
+    def _validate_date_range(self) -> "HarvestRecordFilter":
+        if (
+            self.harvest_date_from is not None
+            and self.harvest_date_to is not None
+            and self.harvest_date_from > self.harvest_date_to
+        ):
+            raise ValueError("harvest_date_from must not be later than harvest_date_to")
+        return self
