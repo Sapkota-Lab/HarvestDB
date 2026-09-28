@@ -85,6 +85,9 @@ class CropService:
         # Get total count before pagination
         total_count = query.count()
 
+        # Order by id to keep paging deterministic across offset/limit queries
+        query = query.order_by(HarvestRecord.id)
+
         # Apply pagination
         offset = (filters.page - 1) * filters.page_size
         records = query.offset(offset).limit(filters.page_size).all()
