@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field, model_validator
 
 class HarvestRecordFilter(BaseModel):
     """Query filters for harvest records."""
-    
+
     harvest_event_id: int | None = Field(default=None, description="Filter by harvest event ID")
     field_id: int | None = Field(default=None, description="Filter by field ID")
     plot_number: str | None = Field(default=None, description="Filter by plot number (partial match)")

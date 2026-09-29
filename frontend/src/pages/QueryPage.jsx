@@ -1,11 +1,17 @@
 import { useEffect, useState } from "react";
 
+import CropRecordForm from "../components/CropRecordForm";
 import CropTable from "../components/CropTable";
 import HarvestRecordFilter from "../components/HarvestRecordFilter";
-import { fetchHarvestRecords } from "../services/api";
+import {
+  deleteHarvestRecord,
+  fetchHarvestRecords,
+  updateHarvestRecord
+} from "../services/api";
 
 export default function QueryPage() {
   const [rows, setRows] = useState([]);
+  const [editingRecord, setEditingRecord] = useState(null);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
@@ -52,20 +58,51 @@ export default function QueryPage() {
     loadRecords(updatedFilters);
   };
 
+  const submitRecord = async (payload) => {
+    if (!editingRecord) {
+      return;
+    }
+
+    try {
+      setError(null);
+      await updateHarvestRecord(editingRecord.id, payload);
+      setEditingRecord(null);
+      await loadRecords(filters);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleDelete = async (record) => {
+    if (!window.confirm(`Delete harvest record #${record.id}?`)) {
+      return;
+    }
+
+    try {
+      setError(null);
+      await deleteHarvestRecord(record.id);
+      if (editingRecord?.id === record.id) {
+        setEditingRecord(null);
+      }
+      await loadRecords(filters);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   return (
     <>
       <HarvestRecordFilter onFilterChange={handleFilterChange} />
-      {error && (
-        <div className="panel error-message">
-          <strong>Error:</strong> {error}
-        </div>
-      )}
-      {loading && (
-        <div className="panel loading-message">
-          Loading records...
-        </div>
-      )}
-      {!loading && (
+      {error ? <p className="form-error panel">{error}</p> : null}
+      {editingRecord ? (
+        <CropRecordForm
+          record={editingRecord}
+          onSubmit={submitRecord}
+          onCancelEdit={() => setEditingRecord(null)}
+        />
+      ) : null}
+      {loading ? <div className="panel loading-message">Loading records...</div> : null}
+      {!loading ? (
         <CropTable
           rows={rows}
           total={total}
@@ -73,8 +110,10 @@ export default function QueryPage() {
           pageSize={filters.page_size}
           totalPages={totalPages}
           onPageChange={handlePageChange}
+          onEdit={setEditingRecord}
+          onDelete={handleDelete}
         />
-      )}
+      ) : null}
     </>
   );
 }

@@ -10,7 +10,9 @@ function formatFieldValue(value) {
   return typeof value === "object" ? JSON.stringify(value) : String(value);
 }
 
-export default function CropTable({ rows, total, page, pageSize, totalPages, onPageChange }) {
+export default function CropTable({ rows, total, page, pageSize, totalPages, onPageChange, onEdit, onDelete }) {
+  const showActions = Boolean(onEdit || onDelete);
+
   return (
     <div className="panel table-wrap">
       <h2>Harvest Records</h2>
@@ -23,12 +25,13 @@ export default function CropTable({ rows, total, page, pageSize, totalPages, onP
             <th>Harvest Event</th>
             <th>Plot Number</th>
             <th>Dynamic Fields</th>
+            {showActions ? <th>Actions</th> : null}
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan="6">No records yet.</td>
+              <td colSpan={showActions ? 7 : 6}>No records yet.</td>
             </tr>
           ) : (
             rows.map((row) => (
@@ -48,6 +51,22 @@ export default function CropTable({ rows, total, page, pageSize, totalPages, onP
                     ))}
                   </dl>
                 </td>
+                {showActions ? (
+                  <td>
+                    <div className="row-actions">
+                      {onEdit ? (
+                        <button type="button" onClick={() => onEdit(row)}>
+                          Edit
+                        </button>
+                      ) : null}
+                      {onDelete ? (
+                        <button type="button" onClick={() => onDelete(row)}>
+                          Delete
+                        </button>
+                      ) : null}
+                    </div>
+                  </td>
+                ) : null}
               </tr>
             ))
           )}
@@ -57,7 +76,7 @@ export default function CropTable({ rows, total, page, pageSize, totalPages, onP
         <div className="pagination">
           <p>
             Showing {rows.length > 0 ? (page - 1) * pageSize + 1 : 0} to{" "}
-            {Math.min(page * pageSize, total)} of {total} records
+            {Math.min((page - 1) * pageSize + rows.length, total)} of {total} records
           </p>
           <div className="pagination-controls">
             <button
