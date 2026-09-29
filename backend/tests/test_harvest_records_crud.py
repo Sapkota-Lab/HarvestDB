@@ -170,6 +170,35 @@ def test_update_harvest_record(client) -> None:
     assert body["dynamic_data"] == {"genotype": "G2"}
 
 
+def test_update_harvest_record_preserves_unmodified_fields(client) -> None:
+    test_client, created_field_ids = client
+    harvest_event_id = _make_harvest_event(created_field_ids)
+
+    created = test_client.post(
+        "/api/v1/harvest-records/",
+        params={"harvest_event_id": harvest_event_id},
+        json={"plot_number": "A-1", "dynamic_data": {"genotype": "G1"}},
+    ).json()
+
+    plot_update = test_client.patch(
+        f"/api/v1/harvest-records/{created['id']}",
+        json={"plot_number": "A-2"},
+    )
+
+    assert plot_update.status_code == 200
+    assert plot_update.json()["plot_number"] == "A-2"
+    assert plot_update.json()["dynamic_data"] == {"genotype": "G1"}
+
+    dynamic_data_update = test_client.patch(
+        f"/api/v1/harvest-records/{created['id']}",
+        json={"dynamic_data": {"genotype": "G2"}},
+    )
+
+    assert dynamic_data_update.status_code == 200
+    assert dynamic_data_update.json()["plot_number"] == "A-2"
+    assert dynamic_data_update.json()["dynamic_data"] == {"genotype": "G2"}
+
+
 def test_delete_harvest_record(client) -> None:
     test_client, created_field_ids = client
     harvest_event_id = _make_harvest_event(created_field_ids)

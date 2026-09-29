@@ -26,8 +26,11 @@ export default function FieldEntryPage() {
       return;
     }
 
-    const records = await fetchHarvestRecords(parsedEventId);
-    setRows(records);
+    const result = await fetchHarvestRecords({
+      harvest_event_id: parsedEventId,
+      page_size: 1000
+    });
+    setRows(result.records || []);
   };
 
   useEffect(() => {
