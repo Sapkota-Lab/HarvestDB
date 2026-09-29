@@ -1,5 +1,6 @@
 import csv
 import io
+import json
 
 from pydantic import ValidationError
 from sqlalchemy import select
@@ -55,11 +56,28 @@ class CropService:
 
     def import_csv(self, csv_text: str, harvest_event_id: int) -> list[HarvestRecordRead]:
         reader = csv.DictReader(io.StringIO(csv_text))
+        if not reader.fieldnames:
+            raise ValueError("CSV file must include a header row")
+
+        required_columns = {"plot_number"}
+        missing_columns = required_columns - set(reader.fieldnames)
+        if missing_columns:
+            missing_column_names = ", ".join(sorted(missing_columns))
+            raise ValueError(f"Missing required column: {missing_column_names}")
+
         records: list[HarvestRecordRead] = []
 
         for line_number, row in enumerate(reader, start=2):
             try:
-                payload = HarvestRecordCreate(**_clean_row(row))
+                data = _clean_row(row)
+                dynamic_data = data.get("dynamic_data")
+                if dynamic_data is None:
+                    data.pop("dynamic_data", None)
+                else:
+                    data["dynamic_data"] = json.loads(dynamic_data)
+                payload = HarvestRecordCreate(**data)
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"Row {line_number}: dynamic_data must be valid JSON") from exc
             except ValidationError as exc:
                 raise ValueError(f"Row {line_number}: {exc}") from exc
 
