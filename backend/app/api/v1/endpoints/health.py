@@ -1,7 +1,5 @@
 from fastapi import APIRouter, HTTPException
 from app.db.session import verify_test_db_connection
-from app.core.logging_config import logger
-
 router = APIRouter()
 
 
