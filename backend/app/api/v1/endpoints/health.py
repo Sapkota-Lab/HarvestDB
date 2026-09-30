@@ -1,14 +1,13 @@
 from fastapi import APIRouter, HTTPException
 from app.db.session import verify_test_db_connection
-
 router = APIRouter()
 
 
-@router.get("/health")
+@router.get("/health") #FastAPI helth check
 def health_check() -> dict[str, str]:
     return {"status": "ok"}
 
-@router.get("/test-db")
+@router.get("/test-db") #Test DB connection health check
 def check_test_db_connection():
     if not verify_test_db_connection():
         raise HTTPException(
