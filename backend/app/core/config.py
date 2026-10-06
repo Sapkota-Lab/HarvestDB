@@ -10,6 +10,10 @@ class Settings(BaseSettings):
     secret_key: str = "change-me"
     access_token_expire_minutes: int = 60
 
+    bird_api_key: str
+    email_alerts: bool = False
+    alert_email_to: str 
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
 

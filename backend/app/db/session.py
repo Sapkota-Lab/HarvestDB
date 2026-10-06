@@ -3,6 +3,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import OperationalError
 
 from app.core.config import settings
+from app.core.logging_config import log_error
 
 engine = create_engine(settings.database_url, future=True)
 testengine = create_engine(settings.testing_database_url, future=True)
@@ -29,5 +30,9 @@ def verify_test_db_connection(): # function to verify the connection to the test
         with testengine.connect() as connection:
             connection.execute(text("SELECT 1"))
         return True
-    except OperationalError:
+    except OperationalError as error:
+        error_message = ("Testing Database connection failed: "
+                         f"{str(error).splitlines()[0]}"
+                        )
+        log_error(error_message, critical=True) #logs error
         return False
