@@ -6,7 +6,7 @@ export async function fetchFields() {
   const response = await fetch(`${API_BASE_URL}/fields/`);
 
   if (!response.ok) {
-    throw new Error("Failed to fetch fields");
+    throw new Error(await readApiError(response, "Failed to fetch fields"));
   }
 
   return response.json();
@@ -44,6 +44,32 @@ export async function createHarvestRecord(harvestEventId, payload) {
   return response.json();
 }
 
+export async function updateHarvestRecord(recordId, payload) {
+  const response = await fetch(`${API_BASE_URL}/harvest-records/${recordId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    throw new Error(await readApiError(response, "Failed to update harvest record"));
+  }
+
+  return response.json();
+}
+
+export async function deleteHarvestRecord(recordId) {
+  const response = await fetch(`${API_BASE_URL}/harvest-records/${recordId}`, {
+    method: "DELETE"
+  });
+
+  if (!response.ok) {
+    throw new Error(await readApiError(response, "Failed to delete harvest record"));
+  }
+}
+
 export async function uploadHarvestRecordsCsv(harvestEventId, file) {
   const formData = new FormData();
   formData.append("file", file);
@@ -54,19 +80,39 @@ export async function uploadHarvestRecordsCsv(harvestEventId, file) {
   });
 
   if (!response.ok) {
-    const detail = await response.json().catch(() => null);
-    throw new Error(detail?.detail || "Failed to upload harvest records CSV");
+    throw new Error(await readApiError(response, "Failed to upload harvest records CSV"));
   }
 
   return response.json();
 }
 
-export async function fetchHarvestRecords(harvestEventId) {
-  const query = harvestEventId ? `?harvest_event_id=${harvestEventId}` : "";
+/**
+ * Fetch harvest records with optional filtering and pagination.
+ * @param {Object} filters - Filter parameters
+ * @param {number} filters.harvest_event_id - Optional harvest event ID
+ * @param {number} filters.field_id - Optional field ID
+ * @param {string} filters.plot_number - Optional plot number (partial match)
+ * @param {string} filters.harvest_date_from - Optional start date (YYYY-MM-DD)
+ * @param {string} filters.harvest_date_to - Optional end date (YYYY-MM-DD)
+ * @param {number} filters.page - Optional page number (default 1)
+ * @param {number} filters.page_size - Optional page size (default 50)
+ * @returns {Promise<{records: Array, total: number, page: number, page_size: number, total_pages: number}>}
+ */
+export async function fetchHarvestRecords(filters = {}) {
+  const params = new URLSearchParams();
+
+  // Only add non-null, non-undefined parameters
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== null && value !== undefined && value !== "") {
+      params.append(key, value);
+    }
+  });
+
+  const query = params.toString() ? `?${params.toString()}` : "";
   const response = await fetch(`${API_BASE_URL}/harvest-records/${query}`);
 
   if (!response.ok) {
-    throw new Error("Failed to fetch harvest records");
+    throw new Error(await readApiError(response, "Failed to fetch harvest records"));
   }
 
   return response.json();

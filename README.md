@@ -1,5 +1,4 @@
-# CropCapture
-
+# HarvestDB
 CropCapture is a modular CRUD platform for agricultural field data collection and in-office querying.
 
 ## Proposed Project Structure

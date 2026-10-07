@@ -1,6 +1,6 @@
 from bird import APIError, Bird
 from app.core.config import settings
-from app.core.logging_config import logger
+import logging
 from datetime import datetime, timedelta, timezone
 
 class NotificationService:
@@ -13,6 +13,7 @@ class NotificationService:
         subject: str,
         message: str,
     ) -> bool:
+        logger = logging.getLogger(__name__)
 
         # Notification system can be disabled through .env
         if not settings.email_alerts:

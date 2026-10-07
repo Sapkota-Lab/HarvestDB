@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { validateRecord } from "../services/recordValidation";
 
@@ -7,12 +7,22 @@ const INITIAL_FORM = {
   dynamic_data: "{}"
 };
 
-export default function CropRecordForm({ onSubmit }) {
+export default function CropRecordForm({ record, onSubmit, onCancelEdit }) {
   const [form, setForm] = useState(INITIAL_FORM);
   const [errors, setErrors] = useState({});
   const [status, setStatus] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submitting = useRef(false);
+  const isEditing = Boolean(record);
+
+  useEffect(() => {
+    setForm(record ? {
+      plot_number: record.plot_number ?? "",
+      dynamic_data: JSON.stringify(record.dynamic_data ?? {}, null, 2)
+    } : INITIAL_FORM);
+    setErrors({});
+    setStatus(null);
+  }, [record]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -38,7 +48,7 @@ export default function CropRecordForm({ onSubmit }) {
     try {
       await onSubmit(payload);
       setForm(INITIAL_FORM);
-      setStatus({ type: "success", message: "Record submitted." });
+      setStatus({ type: "success", message: isEditing ? "Record updated." : "Record saved." });
     } catch (error) {
       setStatus({
         type: "error",
@@ -54,7 +64,7 @@ export default function CropRecordForm({ onSubmit }) {
 
   return (
     <form className="panel" onSubmit={handleSubmit} noValidate aria-busy={isSubmitting}>
-      <h2>New Harvest Record</h2>
+      <h2>{isEditing ? `Edit Harvest Record #${record.id}` : "New Harvest Record"}</h2>
       <div className="grid">
         <label>
           Plot Number
@@ -84,9 +94,16 @@ export default function CropRecordForm({ onSubmit }) {
           {errors.dynamic_data && <span id="dynamic-data-error" className="field-error">{errors.dynamic_data}</span>}
         </label>
       </div>
-      <button className="primary" type="submit" disabled={isSubmitting}>
-        {isSubmitting ? "Submitting…" : "Save Record"}
-      </button>
+      <div className="form-actions">
+        <button className="primary" type="submit" disabled={isSubmitting}>
+          {isSubmitting ? "Submitting…" : isEditing ? "Update Record" : "Save Record"}
+        </button>
+        {isEditing && (
+          <button type="button" onClick={onCancelEdit} disabled={isSubmitting}>
+            Cancel Edit
+          </button>
+        )}
+      </div>
       {status && (
         <p className={status.type === "error" ? "field-error" : "form-success"} role={status.type === "error" ? "alert" : "status"}>
           {status.message}
