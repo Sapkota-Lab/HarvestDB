@@ -10,3 +10,4 @@ alembic==1.16.5
 pytest==8.4.2
 httpx==0.28.1
 messagebird-sdk==0.75.0
+openpyxl==3.1.5
