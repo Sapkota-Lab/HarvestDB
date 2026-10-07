@@ -93,6 +93,30 @@ button.primary {
   cursor: pointer;
 }
 
+button.primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+input[aria-invalid="true"],
+textarea[aria-invalid="true"] {
+  border-color: #a12d24;
+}
+
+.field-error {
+  color: #a12d24;
+  font-size: 0.9rem;
+}
+
+.field-hint {
+  color: #5a6350;
+  font-size: 0.85rem;
+}
+
+.form-success {
+  color: var(--primary);
+}
+
 .table-wrap {
   overflow-x: auto;
 }

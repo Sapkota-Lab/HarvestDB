@@ -1,3 +1,5 @@
+import { readApiError } from "./apiError";
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1";
 
 export async function fetchFields() {
@@ -20,7 +22,7 @@ export async function createHarvestEvent(fieldId, payload) {
   });
 
   if (!response.ok) {
-    throw new Error("Failed to create harvest event");
+    throw new Error(await readApiError(response, "Failed to create harvest event"));
   }
 
   return response.json();
@@ -36,7 +38,7 @@ export async function createHarvestRecord(harvestEventId, payload) {
   });
 
   if (!response.ok) {
-    throw new Error("Failed to create harvest record");
+    throw new Error(await readApiError(response, "Failed to create harvest record"));
   }
 
   return response.json();

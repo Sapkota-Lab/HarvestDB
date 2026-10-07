@@ -7,8 +7,7 @@ export default function FieldEntryPage() {
     const harvestEvent = await createHarvestEvent(1, {
       harvest_date: new Date().toISOString().slice(0, 10)
     });
-    await createHarvestRecord(harvestEvent.id, payload);
-    alert("Record submission endpoint is wired.");
+    return createHarvestRecord(harvestEvent.id, payload);
   };
 
   const uploadCsv = async (file) => {
