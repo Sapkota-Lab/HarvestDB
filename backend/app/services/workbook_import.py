@@ -89,11 +89,14 @@ def read_workbook(path: Path) -> WorkbookImport:
     try:
         index = {}
         if "_Sheet_Index" in workbook.sheetnames:
-            for values in workbook["_Sheet_Index"].iter_rows(min_row=2, values_only=True):
+            for row_number, values in enumerate(
+                workbook["_Sheet_Index"].iter_rows(min_row=2, values_only=True), start=2
+            ):
+                label = f"_Sheet_Index row {row_number}"
                 index[values[0]] = {
-                    "original_sheet": values[1],
-                    "date_assigned": values[4],
-                    "date_reasoning": values[5],
+                    "original_sheet": _json_value(values[1], label),
+                    "date_assigned": _json_value(values[4], label),
+                    "date_reasoning": _json_value(values[5], label),
                 }
 
         for sheet in workbook:

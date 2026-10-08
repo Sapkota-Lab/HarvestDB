@@ -1,5 +1,6 @@
 from dataclasses import replace
-from datetime import date
+from datetime import date, datetime
+import json
 import os
 from pathlib import Path
 from shutil import copyfile
@@ -71,13 +72,14 @@ def test_preserves_source_values_and_uses_sn_as_temporary_plot(tmp_path):
     assert row.source_key == ("HT_01_First_2026-07-13", 2)
 
 
-def test_preserves_inferred_date_reasoning_and_uncached_formulas(tmp_path):
+@pytest.mark.parametrize("date_assigned", ["2026-07-13", date(2026, 7, 13), datetime(2026, 7, 13), None])
+def test_preserves_inferred_date_reasoning_and_uncached_formulas(tmp_path, db, date_assigned):
     path = make_workbook(tmp_path, headers=HEADERS + ["Total Weight (g)"],
                          sheets={"HT_01_First_2026-07-13": [ROW + ["=F2"]]})
     workbook = load_workbook(path)
     index = workbook.create_sheet("_Sheet_Index")
     index.append(["New sheet name", "Original name", "Location", "Harvest", "Date assigned", "Date reasoning"])
-    index.append(["HT_01_First_2026-07-13", "First", "High tunnel", "First", "2026-07-13", "Inferred from weekly cadence"])
+    index.append(["HT_01_First_2026-07-13", "First", "High tunnel", "First", date_assigned, "Inferred from weekly cadence"])
     workbook.save(path)
     workbook.close()
     plan = read_workbook(path)
@@ -86,6 +88,11 @@ def test_preserves_inferred_date_reasoning_and_uncached_formulas(tmp_path):
     source = plan.rows[0].dynamic_data["_source"]
     assert source["formulas"] == {"Total Weight (g)": "=F2"}
     assert source["date_reasoning"] == "Inferred from weekly cadence"
+    assert source["date_assigned"] == (None if date_assigned is None else "2026-07-13")
+    assert json.loads(json.dumps(source)) == source
+    with db.begin():
+        import_workbook(db, plan)
+    assert db.scalar(select(HarvestRecord)).dynamic_data["_source"] == source
 
 
 def test_excludes_undated_and_non_harvest_sheets(tmp_path):
