@@ -17,6 +17,7 @@ export default function FieldEntryPage() {
   const [editingRecord, setEditingRecord] = useState(null);
   const [error, setError] = useState(null);
   const [status, setStatus] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const parsedEventId = Number(harvestEventId);
 
@@ -59,23 +60,26 @@ export default function FieldEntryPage() {
   };
 
   const submitRecord = async (payload) => {
-    try {
-      setError(null);
-      setStatus(null);
-      const eventId = requireEventId();
+    setError(null);
+    setStatus(null);
+    const eventId = requireEventId();
+    setIsSaving(true);
 
+    try {
       if (editingRecord) {
         await updateHarvestRecord(editingRecord.id, payload);
         setEditingRecord(null);
-        setStatus("Record updated.");
       } else {
         await createHarvestRecord(eventId, payload);
-        setStatus("Record saved.");
       }
 
-      await refreshRows();
-    } catch (err) {
-      setError(err.message);
+      try {
+        await refreshRows();
+      } catch {
+        setError("The record was saved, but the list could not refresh. Reload to see the latest records.");
+      }
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -106,7 +110,7 @@ export default function FieldEntryPage() {
   };
 
   return (
-    <>
+    <fieldset className="field-entry" disabled={isSaving}>
       <div className="panel">
         <h1>Lexington Field</h1>
         <p>Manual harvest record entry</p>
@@ -144,6 +148,6 @@ export default function FieldEntryPage() {
         onEdit={setEditingRecord}
         onDelete={handleDelete}
       />
-    </>
+    </fieldset>
   );
 }
