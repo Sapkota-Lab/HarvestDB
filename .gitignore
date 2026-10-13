@@ -16,6 +16,9 @@ dist/
 
 # md files
 CLAUDE.md
+copilot-instructions.md
+AGENTS.md
+
 # Logs
 Logs/
 
