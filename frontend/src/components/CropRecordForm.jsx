@@ -4,7 +4,7 @@ import { validateRecord } from "../services/recordValidation";
 
 const INITIAL_FORM = {
   plot_number: "",
-  dynamic_data: "{}"
+  dynamic_data: ""
 };
 
 export default function CropRecordForm({ record, onSubmit, onCancelEdit }) {
@@ -35,7 +35,10 @@ export default function CropRecordForm({ record, onSubmit, onCancelEdit }) {
     event.preventDefault();
     if (submitting.current) return;
 
-    const { errors: nextErrors, payload } = validateRecord(form);
+    const { errors: nextErrors, payload } = validateRecord({
+      ...form,
+      dynamic_data: form.dynamic_data.trim() || "{}"
+    });
     setErrors(nextErrors);
     setStatus(null);
     if (!payload) {
@@ -84,13 +87,14 @@ export default function CropRecordForm({ record, onSubmit, onCancelEdit }) {
           <textarea
             name="dynamic_data"
             rows="8"
+            placeholder={'{\n  "weight": 12.5,\n  "count": 3,\n  "notes": "ripe"\n}'}
             value={form.dynamic_data}
             onChange={handleChange}
             disabled={isSubmitting}
             aria-invalid={Boolean(errors.dynamic_data)}
             aria-describedby={`dynamic-data-hint${errors.dynamic_data ? " dynamic-data-error" : ""}`}
           />
-          <span id="dynamic-data-hint" className="field-hint">Enter measurements as a JSON object. Use {"{}"} if there are none.</span>
+          <span id="dynamic-data-hint" className="field-hint">Enter measurements as a JSON object. Leave blank or use {"{}"} if there are none.</span>
           {errors.dynamic_data && <span id="dynamic-data-error" className="field-error">{errors.dynamic_data}</span>}
         </label>
       </div>
