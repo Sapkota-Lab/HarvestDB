@@ -1,6 +1,58 @@
 # HarvestDB
 CropCapture is a modular CRUD platform for agricultural field data collection and in-office querying.
 
+## Running Locally
+
+Prerequisites: Python 3.10+, Node.js 18+, and Docker (for the local PostgreSQL database).
+
+### 1. Database
+
+```bash
+cd db_testing
+docker compose up -d
+```
+
+This starts PostgreSQL 15 on `localhost:5432` (user `myuser`, database `testing_db`). The schema is defined in `db_testing/initializeDB.sql`; see `TEST_DB_SETUP.md` for details on initializing and querying the test database.
+
+### 2. Backend (FastAPI, http://localhost:8000)
+
+```bash
+cd backend
+python -m venv .venv
+# Windows: .venv\Scripts\activate    macOS/Linux: source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+Create `backend/.env` with the settings from `backend/app/core/config.py`. `BIRD_API_KEY` and `ALERT_EMAIL_TO` are required; the others have defaults:
+
+```env
+DATABASE_URL=postgresql://myuser:testing_password@localhost:5432/testing_db
+SECRET_KEY=change-me
+BIRD_API_KEY=your-key
+ALERT_EMAIL_TO=you@example.com
+EMAIL_ALERTS=false
+```
+
+Start the server from the `backend/` directory:
+
+```bash
+uvicorn app.main:app --reload --port 8000
+```
+
+Check it at <http://localhost:8000/api/v1/health>; interactive API docs are at <http://localhost:8000/docs>. Run backend tests with `pytest`.
+
+### 3. Frontend (React + Vite, http://localhost:5173)
+
+In a second terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The frontend calls `http://localhost:8000/api/v1` by default. To point it elsewhere, set `VITE_API_BASE_URL` in `frontend/.env`. The backend only allows CORS from `http://localhost:5173` and `http://127.0.0.1:5173`. Run frontend tests with `npm test`.
+
 ## Proposed Project Structure
 
 ```text
