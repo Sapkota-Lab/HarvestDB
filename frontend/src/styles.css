@@ -288,3 +288,34 @@ button.btn-secondary:hover {
   color: #0369a1;
   border: 1px solid #7dd3fc;
 }
+
+.record-images-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+}
+
+.record-images-grid figure {
+  margin: 0;
+  font-size: 0.75rem;
+}
+
+.record-images-grid img {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 4px;
+  display: block;
+}
+
+.record-images-grid figcaption button {
+  margin-left: 0.3rem;
+  padding: 0 0.3rem;
+}
+
+.record-images-upload {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}

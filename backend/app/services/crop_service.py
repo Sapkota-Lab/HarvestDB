@@ -10,6 +10,7 @@ from app.models.harvest_event import HarvestEvent
 from app.models.harvest_record import HarvestRecord
 from app.schemas.harvest_record import HarvestRecordCreate, HarvestRecordQueryRead, HarvestRecordRead, HarvestRecordUpdate
 from app.schemas.harvest_record_filter import HarvestRecordFilter
+from app.services.storage_service import storage
 
 
 class CropService:
@@ -51,8 +52,11 @@ class CropService:
         if record is None:
             return False
 
+        storage_keys = [image.storage_key for image in record.images]
         db.delete(record)
         db.commit()
+        for key in storage_keys:
+            storage.delete(key)
         return True
 
     def import_csv(self, db: Session, csv_text: str, harvest_event_id: int) -> list[HarvestRecordRead]:
