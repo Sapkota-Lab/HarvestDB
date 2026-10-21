@@ -11,8 +11,8 @@ from app.main import app
 from app.models.field import Field
 from app.models.harvest_event import HarvestEvent
 from app.models.harvest_record import HarvestRecord
-from app.services import crop_service, storage_service
-from app.services.storage_service import LocalStorage
+from app.models.record_image import RecordImage
+from app.services import storage_service
 
 PNG_BYTES = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
 
@@ -23,16 +23,16 @@ def _session_local():
     return testingSessionLocal
 
 
-@pytest.fixture()
-def storage(tmp_path, monkeypatch):
-    local = LocalStorage(str(tmp_path))
-    monkeypatch.setattr(record_images, "storage", local)
-    monkeypatch.setattr(crop_service, "storage", local)
-    return local
+def _image_count(image_id: int) -> int:
+    db = _session_local()()
+    try:
+        return len(list(db.scalars(select(RecordImage).where(RecordImage.id == image_id))))
+    finally:
+        db.close()
 
 
 @pytest.fixture()
-def client(storage):
+def client():
     if not verify_test_db_connection():
         pytest.skip("Testing database is not available. Run TEST_DB_SETUP.sh first.")
 
@@ -88,13 +88,7 @@ def test_detect_image_type():
     assert storage_service.detect_image_type(b"not an image") is None
 
 
-def test_storage_rejects_path_traversal(tmp_path):
-    local = LocalStorage(str(tmp_path))
-    with pytest.raises(ValueError):
-        local.path("../secret.png")
-
-
-def test_upload_list_get_delete_image(client, storage):
+def test_upload_list_get_delete_image(client):
     test_client, field_ids = client
     record_id = _make_record(test_client, field_ids)
 
@@ -117,7 +111,7 @@ def test_upload_list_get_delete_image(client, storage):
 
     deleted = test_client.delete(f"/api/v1/harvest-records/images/{image['id']}")
     assert deleted.status_code == 204
-    assert list(storage.root.iterdir()) == []
+    assert _image_count(image["id"]) == 0
 
 
 def test_upload_rejects_non_image(client):
@@ -150,13 +144,13 @@ def test_upload_unknown_record(client):
     assert response.status_code == 404
 
 
-def test_deleting_record_removes_files(client, storage):
+def test_deleting_record_removes_images(client):
     test_client, field_ids = client
     record_id = _make_record(test_client, field_ids)
-    test_client.post(
+    image_id = test_client.post(
         f"/api/v1/harvest-records/{record_id}/images",
         files=[("files", ("a.png", PNG_BYTES, "image/png"))],
-    )
-    assert len(list(storage.root.iterdir())) == 1
+    ).json()[0]["id"]
+    assert _image_count(image_id) == 1
     assert test_client.delete(f"/api/v1/harvest-records/{record_id}").status_code == 204
-    assert list(storage.root.iterdir()) == []
+    assert _image_count(image_id) == 0

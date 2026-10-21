@@ -1,5 +1,4 @@
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -8,7 +7,7 @@ from app.db.session import get_db
 from app.models.harvest_record import HarvestRecord
 from app.models.record_image import RecordImage
 from app.schemas.record_image import ImageCategory, RecordImageRead
-from app.services.storage_service import detect_image_type, storage
+from app.services.storage_service import detect_image_type
 
 router = APIRouter()
 
@@ -37,29 +36,20 @@ async def upload_record_images(
             )
         validated.append((upload, data, content_type))
 
-    saved_keys: list[str] = []
     images: list[RecordImage] = []
-    try:
-        for upload, data, content_type in validated:
-            key = storage.save(data, content_type)
-            saved_keys.append(key)
-            image = RecordImage(
-                harvest_record_id=record_id,
-                storage_key=key,
-                original_filename=(upload.filename or "")[:255] or None,
-                content_type=content_type,
-                size_bytes=len(data),
-                category=category.value,
-                caption=caption,
-            )
-            db.add(image)
-            images.append(image)
-        db.commit()
-    except Exception:
-        db.rollback()
-        for key in saved_keys:
-            storage.delete(key)
-        raise
+    for upload, data, content_type in validated:
+        image = RecordImage(
+            harvest_record_id=record_id,
+            data=data,
+            original_filename=(upload.filename or "")[:255] or None,
+            content_type=content_type,
+            size_bytes=len(data),
+            category=category.value,
+            caption=caption,
+        )
+        db.add(image)
+        images.append(image)
+    db.commit()
 
     for image in images:
         db.refresh(image)
@@ -80,14 +70,11 @@ def list_record_images(record_id: int, db: Session = Depends(get_db)) -> list[Re
 
 
 @router.get("/images/{image_id}")
-def get_image(image_id: int, db: Session = Depends(get_db)) -> FileResponse:
+def get_image(image_id: int, db: Session = Depends(get_db)) -> Response:
     image = db.get(RecordImage, image_id)
     if image is None:
         raise HTTPException(status_code=404, detail="Image not found")
-    path = storage.path(image.storage_key)
-    if not path.exists():
-        raise HTTPException(status_code=404, detail="Image file missing")
-    return FileResponse(path, media_type=image.content_type)
+    return Response(content=image.data, media_type=image.content_type)
 
 
 @router.delete("/images/{image_id}", status_code=204)
@@ -95,7 +82,5 @@ def delete_image(image_id: int, db: Session = Depends(get_db)) -> None:
     image = db.get(RecordImage, image_id)
     if image is None:
         raise HTTPException(status_code=404, detail="Image not found")
-    key = image.storage_key
     db.delete(image)
     db.commit()
-    storage.delete(key)

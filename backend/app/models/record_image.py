@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, String, func
+from sqlalchemy import BigInteger, DateTime, ForeignKey, LargeBinary, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -13,7 +13,8 @@ class RecordImage(Base):
     harvest_record_id: Mapped[int] = mapped_column(
         ForeignKey("harvest_records.id", ondelete="CASCADE"), index=True
     )
-    storage_key: Mapped[str] = mapped_column(String(128), unique=True)
+    # Deferred so listing images never loads the file bytes.
+    data: Mapped[bytes] = mapped_column(LargeBinary, deferred=True)
     original_filename: Mapped[str | None] = mapped_column(String(255))
     content_type: Mapped[str] = mapped_column(String(64))
     size_bytes: Mapped[int] = mapped_column(BigInteger)

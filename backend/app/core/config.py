@@ -9,7 +9,6 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/cropcapture"
     secret_key: str = "change-me"
     access_token_expire_minutes: int = 60
-    upload_dir: str = "uploads"
     max_image_bytes: int = 10 * 1024 * 1024
 
     bird_api_key: str

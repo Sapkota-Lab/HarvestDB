@@ -26,7 +26,7 @@ CREATE TABLE harvest_records (
 CREATE TABLE record_images (
     id SERIAL PRIMARY KEY,
     harvest_record_id INT NOT NULL REFERENCES harvest_records(id) ON DELETE CASCADE,
-    storage_key VARCHAR(128) NOT NULL UNIQUE,
+    data BYTEA NOT NULL,
     original_filename VARCHAR(255),
     content_type VARCHAR(64) NOT NULL,
     size_bytes BIGINT NOT NULL,
