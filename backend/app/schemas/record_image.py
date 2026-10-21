@@ -5,10 +5,10 @@ from pydantic import BaseModel, ConfigDict, computed_field
 
 
 class ImageCategory(str, Enum):
-    tomato = "tomato"
-    plant = "plant"
-    leaf = "leaf"
-    other = "other"
+    Tomato = "Tomato"
+    Plant = "Plant"
+    Leaf = "Leaf"
+    Other = "Other"
 
 
 class RecordImageRead(BaseModel):
@@ -19,7 +19,7 @@ class RecordImageRead(BaseModel):
     original_filename: str | None = None
     content_type: str
     size_bytes: int
-    category: str
+    category: ImageCategory
     caption: str | None = None
     created_at: datetime | None = None
 

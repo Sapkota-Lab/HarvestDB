@@ -2,11 +2,11 @@ import { useEffect, useRef, useState } from "react";
 
 import { deleteRecordImage, fetchRecordImages, imageUrl, uploadRecordImages } from "../services/api";
 
-const CATEGORIES = ["tomato", "plant", "leaf", "other"];
+const CATEGORIES = ["Tomato", "Plant", "Leaf", "Other"];
 
 export default function RecordImages({ recordId }) {
   const [images, setImages] = useState([]);
-  const [category, setCategory] = useState("tomato");
+  const [category, setCategory] = useState("Tomato");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const fileInput = useRef(null);
@@ -62,32 +62,42 @@ export default function RecordImages({ recordId }) {
             <a href={imageUrl(image)} target="_blank" rel="noreferrer">
               <img src={imageUrl(image)} alt={image.caption || image.category} loading="lazy" />
             </a>
-            <figcaption>
-              {image.category}
-              <button type="button" onClick={() => handleDelete(image)} aria-label="Delete image">
-                ×
-              </button>
-            </figcaption>
+            <button
+              type="button"
+              className="record-image-delete"
+              onClick={() => handleDelete(image)}
+              aria-label="Delete image"
+            >
+              ×
+            </button>
+            <figcaption>{image.category}</figcaption>
           </figure>
         ))}
       </div>
       <div className="record-images-upload">
-        <select value={category} onChange={(event) => setCategory(event.target.value)}>
+        <select
+          value={category}
+          onChange={(event) => setCategory(event.target.value)}
+          aria-label="Image category"
+        >
           {CATEGORIES.map((name) => (
             <option key={name} value={name}>
               {name}
             </option>
           ))}
         </select>
-        <input
-          ref={fileInput}
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          capture="environment"
-          multiple
-          disabled={busy}
-          onChange={handleUpload}
-        />
+        <label className={`record-images-add${busy ? " disabled" : ""}`}>
+          {busy ? "Uploading…" : "+ Add photos"}
+          <input
+            ref={fileInput}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            capture="environment"
+            multiple
+            disabled={busy}
+            onChange={handleUpload}
+          />
+        </label>
       </div>
       {error ? <p className="form-error">{error}</p> : null}
     </div>

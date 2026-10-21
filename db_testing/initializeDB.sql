@@ -30,7 +30,7 @@ CREATE TABLE record_images (
     original_filename VARCHAR(255),
     content_type VARCHAR(64) NOT NULL,
     size_bytes BIGINT NOT NULL,
-    category VARCHAR(32) NOT NULL DEFAULT 'other',
+    category VARCHAR(32) NOT NULL DEFAULT 'Other',
     caption VARCHAR(512),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

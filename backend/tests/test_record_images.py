@@ -100,12 +100,12 @@ def test_upload_list_get_delete_image(client, storage):
 
     response = test_client.post(
         f"/api/v1/harvest-records/{record_id}/images",
-        data={"category": "leaf", "caption": "blight"},
+        data={"category": "Leaf", "caption": "blight"},
         files=[("files", ("leaf.png", PNG_BYTES, "image/png"))],
     )
     assert response.status_code == 201
     image = response.json()[0]
-    assert image["category"] == "leaf"
+    assert image["category"] == "Leaf"
     assert image["content_type"] == "image/png"
 
     listed = test_client.get(f"/api/v1/harvest-records/{record_id}/images").json()

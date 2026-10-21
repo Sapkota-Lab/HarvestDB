@@ -17,7 +17,7 @@ router = APIRouter()
 async def upload_record_images(
     record_id: int,
     files: list[UploadFile] = File(...),
-    category: ImageCategory = Form(ImageCategory.other),
+    category: ImageCategory = Form(ImageCategory.Other),
     caption: str | None = Form(None, max_length=512),
     db: Session = Depends(get_db),
 ) -> list[RecordImage]:
