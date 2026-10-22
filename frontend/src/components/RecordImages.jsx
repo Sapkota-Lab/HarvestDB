@@ -91,7 +91,7 @@ export default function RecordImages({ recordId }) {
           <input
             ref={fileInput}
             type="file"
-            accept="image/jpeg,image/png,image/webp"
+            accept="image/jpeg,image/png,image/webp,image/gif,image/bmp,image/tiff,image/heic,image/heif,.heic,.heif"
             capture="environment"
             multiple
             disabled={busy}

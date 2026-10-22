@@ -12,7 +12,7 @@ from app.models.field import Field
 from app.models.harvest_event import HarvestEvent
 from app.models.harvest_record import HarvestRecord
 from app.models.record_image import RecordImage
-from app.services import storage_service
+from app.services import image_storage_service
 
 PNG_BYTES = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
 
@@ -82,10 +82,28 @@ def _make_record(test_client, created_field_ids) -> int:
 
 
 def test_detect_image_type():
-    assert storage_service.detect_image_type(PNG_BYTES) == "image/png"
-    assert storage_service.detect_image_type(b"\xff\xd8\xff\xe0abc") == "image/jpeg"
-    assert storage_service.detect_image_type(b"RIFF\x00\x00\x00\x00WEBPVP8 ") == "image/webp"
-    assert storage_service.detect_image_type(b"not an image") is None
+    assert image_storage_service.detect_image_type(PNG_BYTES) == "image/png"
+    assert image_storage_service.detect_image_type(b"\xff\xd8\xff\xe0abc") == "image/jpeg"
+    assert image_storage_service.detect_image_type(b"RIFF\x00\x00\x00\x00WEBPVP8 ") == "image/webp"
+    assert image_storage_service.detect_image_type(b"GIF89a\x00\x00") == "image/gif"
+    assert image_storage_service.detect_image_type(b"BM" + b"\x00" * 20) == "image/bmp"
+    assert image_storage_service.detect_image_type(b"II*\x00\x08\x00") == "image/tiff"
+    assert image_storage_service.detect_image_type(b"\x00\x00\x00\x18ftypheic\x00") == "image/heic"
+    assert image_storage_service.detect_image_type(b"not an image") is None
+
+
+def test_normalize_converts_tiff_to_jpeg_and_rejects_corrupt():
+    import io
+
+    from PIL import Image
+
+    buf = io.BytesIO()
+    Image.new("RGB", (4, 4), "green").save(buf, format="TIFF")
+    data, content_type = image_storage_service.normalize_image(buf.getvalue(), "image/tiff")
+    assert content_type == "image/jpeg"
+    assert image_storage_service.detect_image_type(data) == "image/jpeg"
+    assert image_storage_service.normalize_image(b"II*\x00garbage", "image/tiff") is None
+    assert image_storage_service.normalize_image(PNG_BYTES, "image/png") == (PNG_BYTES, "image/png")
 
 
 def test_upload_list_get_delete_image(client):

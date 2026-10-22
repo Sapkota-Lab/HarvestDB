@@ -7,7 +7,7 @@ from app.db.session import get_db
 from app.models.harvest_record import HarvestRecord
 from app.models.record_image import RecordImage
 from app.schemas.record_image import ImageCategory, RecordImageRead
-from app.services.storage_service import detect_image_type
+from app.services.image_storage_service import detect_image_type, normalize_image
 
 router = APIRouter()
 
@@ -32,8 +32,15 @@ async def upload_record_images(
         content_type = detect_image_type(data)
         if content_type is None:
             raise HTTPException(
-                status_code=400, detail=f"{upload.filename} must be a JPEG, PNG or WebP image"
+                status_code=400,
+                detail=f"{upload.filename} must be a JPEG, PNG, WebP, GIF, BMP, TIFF or HEIC image",
             )
+        normalized = normalize_image(data, content_type)
+        if normalized is None:
+            raise HTTPException(status_code=400, detail=f"{upload.filename} could not be read")
+        data, content_type = normalized
+        if len(data) > settings.max_image_bytes:
+            raise HTTPException(status_code=413, detail=f"{upload.filename} exceeds the size limit")
         validated.append((upload, data, content_type))
 
     images: list[RecordImage] = []
