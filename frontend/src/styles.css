@@ -320,6 +320,93 @@ textarea[aria-invalid="true"] {
   min-width: 0;
 }
 
+.record-images-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+}
+
+.record-images-grid figure {
+  position: relative;
+  margin: 0;
+  font-size: 0.7rem;
+  text-align: center;
+  color: #5b6657;
+}
+
+.record-images-grid img {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: block;
+}
+
+.record-image-delete {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.record-images-grid figure:hover .record-image-delete,
+.record-image-delete:focus-visible {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .record-image-delete {
+    opacity: 1;
+  }
+}
+
+.record-images-upload {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.record-images-upload select {
+  width: auto;
+  padding: 0.3rem 0.4rem;
+  font-size: 0.8rem;
+}
+
+.record-images-add {
+  display: inline-block;
+  padding: 0.3rem 0.65rem;
+  border: 1px dashed var(--primary);
+  border-radius: 8px;
+  color: var(--primary);
+  font-size: 0.8rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.record-images-add:hover {
+  background: rgba(63, 106, 53, 0.08);
+}
+
+.record-images-add.disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.record-images-add input {
+  display: none;
 .selection-form {
   display: grid;
   gap: 0.75rem;
