@@ -319,3 +319,15 @@ textarea[aria-invalid="true"] {
   padding: 0;
   min-width: 0;
 }
+
+.selection-form {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+
+.selection-form button {
+  justify-self: start;
+}
