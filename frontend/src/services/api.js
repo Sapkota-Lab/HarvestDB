@@ -28,6 +28,26 @@ export async function createHarvestEvent(fieldId, payload) {
   return response.json();
 }
 
+export async function createField(payload) {
+  const response = await fetch(`${API_BASE_URL}/fields/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    throw new Error(await readApiError(response, "Failed to create field"));
+  }
+  return response.json();
+}
+
+export async function fetchHarvestEvents(fieldId) {
+  const response = await fetch(`${API_BASE_URL}/harvests/?field_id=${fieldId}`);
+  if (!response.ok) {
+    throw new Error(await readApiError(response, "Failed to fetch harvest events"));
+  }
+  return response.json();
+}
+
 export async function createHarvestRecord(harvestEventId, payload) {
   const response = await fetch(`${API_BASE_URL}/harvest-records/?harvest_event_id=${harvestEventId}`, {
     method: "POST",
