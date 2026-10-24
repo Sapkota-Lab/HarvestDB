@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.models.field import Field
 from app.models.harvest_event import HarvestEvent
 from app.models.harvest_record import HarvestRecord
-from app.schemas.harvest_record import HarvestRecordCreate, HarvestRecordQueryRead, HarvestRecordRead, HarvestRecordUpdate
+from app.schemas.harvest_record import HarvestRecordCreate, HarvestRecordQueryRead, HarvestRecordRead, HarvestRecordUpdate, HarvestUploadRead, ImportedSheet
 from app.schemas.harvest_record_filter import HarvestRecordFilter
 
 
@@ -72,7 +72,7 @@ class CropService:
 
         return self._import_rows(db, enumerate(reader, start=2), harvest_event_id)
 
-    def import_xlsx(self, db: Session, raw: bytes, harvest_event_id: int) -> list[HarvestRecordRead]:
+    def import_xlsx(self, db: Session, raw: bytes, harvest_event_id: int) -> HarvestUploadRead:
         workbook = None
         try:
             workbook = load_workbook(io.BytesIO(raw), read_only=True, data_only=False)
@@ -99,7 +99,12 @@ class CropService:
                         raise ValueError(f"Row {row_number}: fix Excel cell errors before uploading")
                     yield row_number, {header: cell.value for header, cell in zip(headers, cells) if header}
 
-            return self._import_rows(db, worksheet_rows(), harvest_event_id)
+            records = self._import_rows(db, worksheet_rows(), harvest_event_id)
+            return HarvestUploadRead(
+                records=records,
+                imported_sheets=[ImportedSheet(name=workbook.worksheets[0].title, record_count=len(records))],
+                skipped_sheets=[sheet.title for sheet in workbook.worksheets[1:]],
+            )
         except (BadZipFile, InvalidFileException, ParseError, KeyError, EOFError, OSError) as exc:
             raise ValueError("Could not read XLSX file. Upload a valid, unencrypted .xlsx workbook.") from exc
         finally:

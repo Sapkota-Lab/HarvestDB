@@ -11,4 +11,8 @@ For XLSX uploads:
 - Numeric plot numbers are converted to text. To preserve leading zeros, store those cells as text in Excel.
 - Replace formulas with values and fix Excel cell errors before uploading.
 
+After uploading, the app shows the total record count, the imported tab's name and count, and the names of any tabs that were not imported. CSV uploads show the total record count.
+
+The upload response contains `records`, `imported_sheets` (each with `name` and `record_count`), and `skipped_sheets`. Both sheet lists are empty for CSV uploads.
+
 All rows are validated before records are saved. If a row is invalid, the upload reports its row number and saves no records from that file.

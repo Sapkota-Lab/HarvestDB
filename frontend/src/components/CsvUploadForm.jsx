@@ -19,8 +19,19 @@ export default function CsvUploadForm({ onUpload }) {
     setIsUploading(true);
     setStatus("Uploading...");
     try {
-      const records = await onUpload(file);
-      setStatus(`Imported ${records.length} record${records.length === 1 ? "" : "s"}.`);
+      const result = await onUpload(file);
+      const count = result.records.length;
+      let message = `Imported ${count} record${count === 1 ? "" : "s"}.`;
+      if (result.imported_sheets.length) {
+        const tabs = result.imported_sheets.map((sheet) =>
+          `“${sheet.name}” (${sheet.record_count} record${sheet.record_count === 1 ? "" : "s"})`
+        );
+        message += ` Tabs imported: ${tabs.join(", ")}.`;
+      }
+      if (result.skipped_sheets.length) {
+        message += ` Tabs not imported: ${result.skipped_sheets.map((name) => `“${name}”`).join(", ")}.`;
+      }
+      setStatus(message);
       setFile(null);
       form.reset();
     } catch (error) {

@@ -65,12 +65,14 @@ def test_upload_parses_valid_rows(client, database) -> None:
     response = _upload(client, csv_text)
 
     assert response.status_code == 200
-    records = response.json()
+    records = response.json()["records"]
     assert len(records) == 2
     assert records[0]["plot_number"] == "A-1"
     assert records[0]["harvest_event_id"] == 1
     assert records[0]["dynamic_data"] == {"genotype": "G1", "count": 10}
     assert records[1]["dynamic_data"] == {}
+    assert response.json()["imported_sheets"] == []
+    assert response.json()["skipped_sheets"] == []
     assert database.scalar(select(func.count()).select_from(HarvestRecord)) == 2
 
 
@@ -103,6 +105,7 @@ def test_upload_rejects_invalid_dynamic_data(client) -> None:
 
 def make_xlsx(rows, second_sheet=None):
     workbook = Workbook()
+    workbook.active.title = "First harvest"
     for row in rows:
         workbook.active.append(row)
     if second_sheet:
@@ -124,11 +127,13 @@ def test_xlsx_upload_saves_numeric_and_text_plot_numbers(client, database):
     ])
     response = _upload(client, workbook, "records.XLSX")
     assert response.status_code == 200
-    records = response.json()
+    records = response.json()["records"]
     assert [record["plot_number"] for record in records] == ["0", "12", "0013"]
     assert records[0]["dynamic_data"] == {"weight": 12.5, "count": 0}
     assert records[1]["dynamic_data"] == {}
     assert all(record["harvest_event_id"] == 1 for record in records)
+    assert response.json()["imported_sheets"] == [{"name": "First harvest", "record_count": 3}]
+    assert response.json()["skipped_sheets"] == []
     assert database.scalar(select(func.count()).select_from(HarvestRecord)) == 3
 
 
@@ -139,7 +144,19 @@ def test_xlsx_imports_only_the_first_worksheet(client):
     )
     response = _upload(client, workbook, "records.xlsx")
     assert response.status_code == 200
-    assert [record["plot_number"] for record in response.json()] == ["A-1", "A-2"]
+    assert [record["plot_number"] for record in response.json()["records"]] == ["A-1", "A-2"]
+    assert response.json()["imported_sheets"] == [{"name": "First harvest", "record_count": 2}]
+    assert response.json()["skipped_sheets"] == ["Other harvest"]
+
+
+def test_xlsx_summary_reports_zero_records_for_a_header_only_sheet(client):
+    response = _upload(client, make_xlsx([["plot_number"]]), "records.xlsx")
+    assert response.status_code == 200
+    assert response.json() == {
+        "records": [],
+        "imported_sheets": [{"name": "First harvest", "record_count": 0}],
+        "skipped_sheets": [],
+    }
 
 
 @pytest.mark.parametrize("rows, message", [
@@ -169,7 +186,7 @@ def test_xlsx_rejects_corrupt_files(client, content):
 def test_csv_still_accepts_a_utf8_bom(client):
     response = _upload(client, "\ufeffplot_number\nA-1\n".encode("utf-8"), "records.CSV")
     assert response.status_code == 200
-    assert response.json()[0]["plot_number"] == "A-1"
+    assert response.json()["records"][0]["plot_number"] == "A-1"
 
 
 def test_csv_rejects_invalid_encoding(client):
