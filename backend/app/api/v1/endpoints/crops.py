@@ -4,7 +4,8 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.schemas.harvest_record import HarvestRecordCreate, HarvestRecordRead, HarvestRecordUpdate
+from app.models.harvest_event import HarvestEvent
+from app.schemas.harvest_record import HarvestRecordCreate, HarvestRecordRead, HarvestRecordUpdate, HarvestUploadRead
 from app.schemas.harvest_record_filter import HarvestRecordFilter
 from app.services.crop_service import CropService
 
@@ -79,22 +80,26 @@ def delete_harvest_record(record_id: int, db: Session = Depends(get_db)) -> None
         raise HTTPException(status_code=404, detail="Harvest record not found")
 
 
-@router.post("/upload", response_model=list[HarvestRecordRead])
+@router.post("/upload", response_model=HarvestUploadRead)
 async def upload_harvest_records(
     harvest_event_id: int,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-) -> list[HarvestRecordRead]:
-    if not file.filename or not file.filename.lower().endswith(".csv"):
-        raise HTTPException(status_code=400, detail="Uploaded file must be a .csv file")
+) -> HarvestUploadRead:
+    filename = (file.filename or "").lower()
+    if not filename.endswith((".csv", ".xlsx")):
+        raise HTTPException(status_code=400, detail="Uploaded file must be a .csv or .xlsx file")
+
+    if db.get(HarvestEvent, harvest_event_id) is None:
+        raise HTTPException(status_code=404, detail="Harvest event not found")
 
     raw = await file.read()
     try:
+        if filename.endswith(".xlsx"):
+            return crop_service.import_xlsx(db, raw, harvest_event_id)
         csv_text = raw.decode("utf-8-sig")
+        return HarvestUploadRead(records=crop_service.import_csv(db, csv_text, harvest_event_id))
     except UnicodeDecodeError as exc:
-        raise HTTPException(status_code=400, detail="Uploaded file must be UTF-8 encoded") from exc
-
-    try:
-        return crop_service.import_csv(db, csv_text, harvest_event_id)
+        raise HTTPException(status_code=400, detail="CSV file must be UTF-8 encoded") from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
