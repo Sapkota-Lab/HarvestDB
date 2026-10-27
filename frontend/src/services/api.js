@@ -146,7 +146,7 @@ export async function fetchRecordImages(recordId) {
   const response = await fetch(`${API_BASE_URL}/harvest-records/${recordId}/images`);
 
   if (!response.ok) {
-    throw new Error(await readError(response, "Failed to fetch images"));
+    throw new Error(await readApiError(response, "Failed to fetch images"));
   }
 
   return response.json();
@@ -166,7 +166,7 @@ export async function uploadRecordImages(recordId, files, category, caption = ""
   });
 
   if (!response.ok) {
-    throw new Error(await readError(response, "Failed to upload images"));
+    throw new Error(await readApiError(response, "Failed to upload images"));
   }
 
   return response.json();
@@ -178,6 +178,6 @@ export async function deleteRecordImage(imageId) {
   });
 
   if (!response.ok) {
-    throw new Error(await readError(response, "Failed to delete image"));
+    throw new Error(await readApiError(response, "Failed to delete image"));
   }
 }

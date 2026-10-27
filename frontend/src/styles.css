@@ -407,6 +407,7 @@ textarea[aria-invalid="true"] {
 
 .record-images-add input {
   display: none;
+}
 .selection-form {
   display: grid;
   gap: 0.75rem;
