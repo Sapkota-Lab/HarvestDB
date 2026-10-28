@@ -1,3 +1,5 @@
+import RecordImages from "./RecordImages";
+
 function formatFieldLabel(fieldName) {
   return fieldName.replace(/_/g, " ").replace(/\b\w/g, (character) => character.toUpperCase());
 }
@@ -25,13 +27,14 @@ export default function CropTable({ rows, total, page, pageSize, totalPages, onP
             <th>Harvest Event</th>
             <th>Plot Number</th>
             <th>Dynamic Fields</th>
+            <th>Images</th>
             {showActions ? <th>Actions</th> : null}
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={showActions ? 7 : 6}>No records yet.</td>
+              <td colSpan={showActions ? 8 : 7}>No records yet.</td>
             </tr>
           ) : (
             rows.map((row) => (
@@ -50,6 +53,9 @@ export default function CropTable({ rows, total, page, pageSize, totalPages, onP
                       </div>
                     ))}
                   </dl>
+                </td>
+                <td>
+                  <RecordImages recordId={row.id} />
                 </td>
                 {showActions ? (
                   <td>

@@ -28,6 +28,26 @@ export async function createHarvestEvent(fieldId, payload) {
   return response.json();
 }
 
+export async function createField(payload) {
+  const response = await fetch(`${API_BASE_URL}/fields/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    throw new Error(await readApiError(response, "Failed to create field"));
+  }
+  return response.json();
+}
+
+export async function fetchHarvestEvents(fieldId) {
+  const response = await fetch(`${API_BASE_URL}/harvests/?field_id=${fieldId}`);
+  if (!response.ok) {
+    throw new Error(await readApiError(response, "Failed to fetch harvest events"));
+  }
+  return response.json();
+}
+
 export async function createHarvestRecord(harvestEventId, payload) {
   const response = await fetch(`${API_BASE_URL}/harvest-records/?harvest_event_id=${harvestEventId}`, {
     method: "POST",
@@ -136,4 +156,48 @@ export async function fetchHarvestRecords(filters = {}) {
   }
 
   return response.json();
+}
+
+export function imageUrl(image) {
+  return new URL(image.url, API_BASE_URL).href;
+}
+
+export async function fetchRecordImages(recordId) {
+  const response = await fetch(`${API_BASE_URL}/harvest-records/${recordId}/images`);
+
+  if (!response.ok) {
+    throw new Error(await readApiError(response, "Failed to fetch images"));
+  }
+
+  return response.json();
+}
+
+export async function uploadRecordImages(recordId, files, category, caption = "") {
+  const formData = new FormData();
+  Array.from(files).forEach((file) => formData.append("files", file));
+  formData.append("category", category);
+  if (caption) {
+    formData.append("caption", caption);
+  }
+
+  const response = await fetch(`${API_BASE_URL}/harvest-records/${recordId}/images`, {
+    method: "POST",
+    body: formData
+  });
+
+  if (!response.ok) {
+    throw new Error(await readApiError(response, "Failed to upload images"));
+  }
+
+  return response.json();
+}
+
+export async function deleteRecordImage(imageId) {
+  const response = await fetch(`${API_BASE_URL}/harvest-records/images/${imageId}`, {
+    method: "DELETE"
+  });
+
+  if (!response.ok) {
+    throw new Error(await readApiError(response, "Failed to delete image"));
+  }
 }
