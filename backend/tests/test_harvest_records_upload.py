@@ -1,5 +1,6 @@
 from datetime import date
 from io import BytesIO
+import json
 
 import pytest
 from fastapi.testclient import TestClient
@@ -31,6 +32,7 @@ def database():
         db.add(Field(id=1, name="Lexington"))
         db.flush()
         db.add(HarvestEvent(id=1, field_id=1, harvest_date=date(2026, 10, 23)))
+        db.add(HarvestEvent(id=2, field_id=1, harvest_date=date(2026, 10, 24)))
         db.commit()
         yield db
     engine.dispose()
@@ -47,10 +49,18 @@ def client(database):
         app.dependency_overrides = previous
 
 
-def _upload(client, content, filename="records.csv", event_id=1):
+def _upload(client, content, filename="records.csv", event_id=1, sheet_event_ids=None):
+    data = None
+    if filename.lower().endswith(".xlsx"):
+        data = {
+            "sheet_event_ids": json.dumps(
+                {"First harvest": event_id} if sheet_event_ids is None else sheet_event_ids
+            )
+        }
     return client.post(
         "/api/v1/harvest-records/upload",
         params={"harvest_event_id": event_id},
+        data=data,
         files={"file": (filename, content, "application/octet-stream")},
     )
 
@@ -137,16 +147,76 @@ def test_xlsx_upload_saves_numeric_and_text_plot_numbers(client, database):
     assert database.scalar(select(func.count()).select_from(HarvestRecord)) == 3
 
 
-def test_xlsx_imports_only_the_first_worksheet(client):
+def test_xlsx_imports_each_worksheet_to_its_selected_event(client):
     workbook = make_xlsx(
         [["plot_number"], ["A-1"], [], ["A-2"]],
         second_sheet=[["plot_number"], ["B-1"]],
     )
-    response = _upload(client, workbook, "records.xlsx")
+    response = _upload(
+        client,
+        workbook,
+        "records.xlsx",
+        sheet_event_ids={"First harvest": 1, "Other harvest": 2},
+    )
     assert response.status_code == 200
-    assert [record["plot_number"] for record in response.json()["records"]] == ["A-1", "A-2"]
-    assert response.json()["imported_sheets"] == [{"name": "First harvest", "record_count": 2}]
+    records = response.json()["records"]
+    assert [(record["plot_number"], record["harvest_event_id"]) for record in records] == [
+        ("A-1", 1),
+        ("A-2", 1),
+        ("B-1", 2),
+    ]
+    assert response.json()["imported_sheets"] == [
+        {"name": "First harvest", "record_count": 2},
+        {"name": "Other harvest", "record_count": 1},
+    ]
+    assert response.json()["skipped_sheets"] == []
+
+
+def test_xlsx_can_skip_non_harvest_worksheets(client):
+    workbook = make_xlsx(
+        [["plot_number"], ["A-1"]],
+        second_sheet=[["Notes"], ["not a record"]],
+    )
+    response = _upload(
+        client,
+        workbook,
+        "records.xlsx",
+        sheet_event_ids={"First harvest": 1, "Other harvest": None},
+    )
+    assert response.status_code == 200
+    assert [record["plot_number"] for record in response.json()["records"]] == ["A-1"]
     assert response.json()["skipped_sheets"] == ["Other harvest"]
+
+
+def test_xlsx_rejects_invalid_second_worksheet_without_saving_first(client, database):
+    workbook = make_xlsx(
+        [["plot_number"], ["A-1"]],
+        second_sheet=[["plot_number", "dynamic_data"], ["B-1", "bad"]],
+    )
+    response = _upload(
+        client,
+        workbook,
+        "records.xlsx",
+        sheet_event_ids={"First harvest": 1, "Other harvest": 2},
+    )
+    assert response.status_code == 400
+    assert "Other harvest: Row 2" in response.json()["detail"]
+    assert database.scalar(select(func.count()).select_from(HarvestRecord)) == 0
+
+
+def test_xlsx_requires_a_mapping_for_each_worksheet(client):
+    workbook = make_xlsx(
+        [["plot_number"], ["A-1"]],
+        second_sheet=[["plot_number"], ["B-1"]],
+    )
+    response = _upload(
+        client,
+        workbook,
+        "records.xlsx",
+        sheet_event_ids={"First harvest": 1},
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Choose an event or skip each worksheet"
 
 
 def test_xlsx_summary_reports_zero_records_for_a_header_only_sheet(client):
@@ -157,6 +227,19 @@ def test_xlsx_summary_reports_zero_records_for_a_header_only_sheet(client):
         "imported_sheets": [{"name": "First harvest", "record_count": 0}],
         "skipped_sheets": [],
     }
+
+
+def test_xlsx_worksheet_preview_lists_every_tab(client):
+    workbook = make_xlsx(
+        [["plot_number"], ["A-1"]],
+        second_sheet=[["plot_number"], ["B-1"]],
+    )
+    response = client.post(
+        "/api/v1/harvest-records/upload/worksheets",
+        files={"file": ("records.xlsx", workbook, "application/octet-stream")},
+    )
+    assert response.status_code == 200
+    assert response.json() == ["First harvest", "Other harvest"]
 
 
 @pytest.mark.parametrize("rows, message", [

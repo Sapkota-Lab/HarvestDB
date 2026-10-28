@@ -7,6 +7,7 @@ import { createServer } from "vite";
 
 let server;
 let CsvUploadForm;
+let listHarvestUploadWorksheets;
 let uploadHarvestRecordsCsv;
 
 before(async () => {
@@ -15,14 +16,16 @@ before(async () => {
     server: { middlewareMode: true, hmr: { server: createHttpServer() } }
   });
   CsvUploadForm = (await server.ssrLoadModule("/src/components/CsvUploadForm.jsx")).default;
-  uploadHarvestRecordsCsv = (await server.ssrLoadModule("/src/services/api.js")).uploadHarvestRecordsCsv;
+  const api = await server.ssrLoadModule("/src/services/api.js");
+  listHarvestUploadWorksheets = api.listHarvestUploadWorksheets;
+  uploadHarvestRecordsCsv = api.uploadHarvestRecordsCsv;
 });
 
 after(async () => { await server?.close(); });
 
-async function render(t, onUpload) {
+async function render(t, onUpload, onPreview = async () => ["First harvest"]) {
   let view;
-  await act(async () => { view = create(React.createElement(CsvUploadForm, { onUpload })); });
+  await act(async () => { view = create(React.createElement(CsvUploadForm, { onPreview, onUpload })); });
   t.after(() => act(() => view.unmount()));
   return view;
 }
@@ -33,6 +36,18 @@ function choose(view, file) {
 
 function submit(view, reset = () => {}) {
   return view.root.findByType("form").props.onSubmit({ preventDefault() {}, currentTarget: { reset } });
+}
+
+async function importXlsx(view, sheetNames = ["First harvest"], reset) {
+  await act(async () => { await submit(view); });
+  for (const name of sheetNames) {
+    act(() => {
+      view.root.findByProps({ "aria-label": `Harvest event ID for ${name}` }).props.onChange({
+        target: { value: "18" }
+      });
+    });
+  }
+  await act(async () => { await submit(view, reset); });
 }
 
 function uploadResult(records = [], importedSheets = [], skippedSheets = []) {
@@ -54,7 +69,11 @@ test("both supported file types reach the upload callback and reset after succes
     let resets = 0;
     const view = await render(t, async (value) => { uploaded = value; return uploadResult([{ id: 1 }]); });
     choose(view, file);
-    await act(async () => { await submit(view, () => { resets++; }); });
+    if (filename.endsWith(".XLSX")) {
+      await importXlsx(view, ["First harvest"], () => { resets++; });
+    } else {
+      await act(async () => { await submit(view, () => { resets++; }); });
+    }
     assert.equal(uploaded, file);
     assert.equal(resets, 1);
     assert.equal(view.root.findByProps({ role: "status" }).children[0], "Imported 1 record.");
@@ -71,6 +90,36 @@ test("unsupported files are rejected before uploading", async (t) => {
   assert.equal(view.root.findByProps({ role: "status" }).children[0], "Choose a .csv or .xlsx file.");
 });
 
+test("XLSX uploads require an event choice or skip choice for every worksheet", async (t) => {
+  let uploadedMappings;
+  const view = await render(
+    t,
+    async (_file, mappings) => {
+      uploadedMappings = mappings;
+      return uploadResult([{ id: 1 }], [{ name: "First harvest", record_count: 1 }], ["Notes"]);
+    },
+    async () => ["First harvest", "Notes"]
+  );
+  choose(view, new File(["test"], "records.xlsx"));
+  await act(async () => { await submit(view); });
+  assert.equal(view.root.findByProps({ role: "status" }).children[0], "Select an event ID for each worksheet, or choose Skip.");
+
+  await act(async () => { await submit(view); });
+  assert.equal(uploadedMappings, undefined);
+  assert.match(view.root.findByProps({ role: "status" }).children[0], /First harvest/);
+
+  act(() => {
+    view.root.findByProps({ "aria-label": "Harvest event ID for First harvest" }).props.onChange({
+      target: { value: "22" }
+    });
+    view.root.findByProps({ "aria-label": "Skip Notes" }).props.onChange({
+      target: { checked: true }
+    });
+  });
+  await act(async () => { await submit(view); });
+  assert.deepEqual(uploadedMappings, { "First harvest": 22, Notes: null });
+});
+
 test("uploads block duplicate submissions and retain failed files for retry", async (t) => {
   let reject;
   let calls = 0;
@@ -78,6 +127,12 @@ test("uploads block duplicate submissions and retain failed files for retry", as
   const pending = new Promise((_resolve, failUpload) => { reject = failUpload; });
   const view = await render(t, async () => { calls++; return fail ? pending : uploadResult([{ id: 1 }]); });
   choose(view, new File(["test"], "records.xlsx"));
+  await act(async () => { await submit(view); });
+  act(() => {
+    view.root.findByProps({ "aria-label": "Harvest event ID for First harvest" }).props.onChange({
+      target: { value: "18" }
+    });
+  });
   let uploading;
   act(() => { uploading = submit(view); });
   assert.equal(view.root.findByProps({ type: "file" }).props.disabled, true);
@@ -103,12 +158,30 @@ test("the API sends both file types as multipart data to the selected harvest", 
       return new Response(JSON.stringify(uploadResult([{ id: 1 }])));
     };
     const file = new File(["test content"], filename);
-    assert.deepEqual(await uploadHarvestRecordsCsv(18, file), uploadResult([{ id: 1 }]));
+    const sheetEventIds = filename.endsWith(".xlsx") ? { "First harvest": 22 } : null;
+    assert.deepEqual(await uploadHarvestRecordsCsv(18, file, sheetEventIds), uploadResult([{ id: 1 }]));
     assert.match(request.url, /\/harvest-records\/upload\?harvest_event_id=18$/);
     assert.equal(request.options.method, "POST");
     assert.equal(request.options.body.get("file").name, filename);
     assert.equal(await request.options.body.get("file").text(), "test content");
+    if (sheetEventIds) {
+      assert.equal(request.options.body.get("sheet_event_ids"), JSON.stringify(sheetEventIds));
+    }
   }
+});
+
+test("the API previews workbook worksheet names", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  let request;
+  globalThis.fetch = async (url, options) => {
+    request = { url, options };
+    return new Response(JSON.stringify(["First harvest", "Second harvest"]));
+  };
+  const file = new File(["workbook"], "records.xlsx");
+  assert.deepEqual(await listHarvestUploadWorksheets(file), ["First harvest", "Second harvest"]);
+  assert.equal(request.url, "http://localhost:8000/api/v1/harvest-records/upload/worksheets");
+  assert.equal(request.options.body.get("file").name, "records.xlsx");
 });
 
 test("XLSX success messages show the imported tab, row count, and tabs not imported", async (t) => {
@@ -118,7 +191,7 @@ test("XLSX success messages show the imported tab, row count, and tabs not impor
     ["Second harvest", "Notes"]
   ));
   choose(view, new File(["test"], "records.xlsx"));
-  await act(async () => { await submit(view); });
+  await importXlsx(view, ["First harvest"]);
   assert.equal(
     view.root.findByProps({ role: "status" }).children[0],
     "Imported 2 records. Tabs imported: “First harvest” (2 records). Tabs not imported: “Second harvest”, “Notes”."
@@ -130,7 +203,7 @@ test("XLSX summaries handle one record and an empty worksheet", async (t) => {
     const records = Array.from({ length: count }, () => ({ id: 1 }));
     const view = await render(t, async () => uploadResult(records, [{ name: "Harvest", record_count: count }]));
     choose(view, new File(["test"], "records.xlsx"));
-    await act(async () => { await submit(view); });
+    await importXlsx(view);
     const label = count === 1 ? "1 record" : "0 records";
     assert.equal(view.root.findByProps({ role: "status" }).children[0], `Imported ${label}. Tabs imported: “Harvest” (${label}).`);
   }
@@ -139,7 +212,7 @@ test("XLSX summaries handle one record and an empty worksheet", async (t) => {
 test("choosing another file clears the previous tab summary", async (t) => {
   const view = await render(t, async () => uploadResult([{ id: 1 }], [{ name: "Harvest", record_count: 1 }]));
   choose(view, new File(["test"], "records.xlsx"));
-  await act(async () => { await submit(view); });
+  await importXlsx(view);
   choose(view, new File(["test"], "other.xlsx"));
   assert.equal(view.root.findAllByProps({ role: "status" }).length, 0);
 });

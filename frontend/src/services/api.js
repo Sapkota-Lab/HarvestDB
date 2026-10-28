@@ -70,17 +70,37 @@ export async function deleteHarvestRecord(recordId) {
   }
 }
 
-export async function uploadHarvestRecordsCsv(harvestEventId, file) {
+export async function listHarvestUploadWorksheets(file) {
   const formData = new FormData();
   formData.append("file", file);
 
-  const response = await fetch(`${API_BASE_URL}/harvest-records/upload?harvest_event_id=${harvestEventId}`, {
+  const response = await fetch(`${API_BASE_URL}/harvest-records/upload/worksheets`, {
     method: "POST",
     body: formData
   });
 
   if (!response.ok) {
-    throw new Error(await readApiError(response, "Failed to upload harvest records CSV"));
+    throw new Error(await readApiError(response, "Failed to read workbook worksheets"));
+  }
+
+  return response.json();
+}
+
+export async function uploadHarvestRecordsCsv(harvestEventId, file, sheetEventIds = null) {
+  const formData = new FormData();
+  formData.append("file", file);
+  if (sheetEventIds) {
+    formData.append("sheet_event_ids", JSON.stringify(sheetEventIds));
+  }
+
+  const query = harvestEventId ? `?harvest_event_id=${harvestEventId}` : "";
+  const response = await fetch(`${API_BASE_URL}/harvest-records/upload${query}`, {
+    method: "POST",
+    body: formData
+  });
+
+  if (!response.ok) {
+    throw new Error(await readApiError(response, "Failed to upload harvest records"));
   }
 
   return response.json();

@@ -8,6 +8,7 @@ import {
   deleteHarvestRecord,
   fetchHarvestRecords,
   updateHarvestRecord,
+  listHarvestUploadWorksheets,
   uploadHarvestRecordsCsv
 } from "../services/api";
 
@@ -102,9 +103,11 @@ export default function FieldEntryPage() {
     }
   };
 
-  const uploadCsv = async (file) => {
-    const eventId = requireEventId();
-    const records = await uploadHarvestRecordsCsv(eventId, file);
+  const previewUpload = (file) => listHarvestUploadWorksheets(file);
+
+  const uploadCsv = async (file, sheetEventIds) => {
+    const eventId = file.name.toLowerCase().endsWith(".csv") ? requireEventId() : null;
+    const records = await uploadHarvestRecordsCsv(eventId, file, sheetEventIds);
     await refreshRows();
     return records;
   };
@@ -142,7 +145,7 @@ export default function FieldEntryPage() {
         onSubmit={submitRecord}
         onCancelEdit={() => setEditingRecord(null)}
       />
-      <CsvUploadForm onUpload={uploadCsv} />
+      <CsvUploadForm onPreview={previewUpload} onUpload={uploadCsv} />
       <CropTable
         rows={rows}
         onEdit={setEditingRecord}
