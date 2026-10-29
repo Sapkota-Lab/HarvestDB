@@ -50,6 +50,7 @@ function mockSelectionFetch(t, handler) {
   globalThis.fetch = async (url, options) => {
     if (url.includes("/fields/")) return new Response(JSON.stringify([{ id: 1, name: "Lexington" }]));
     if (url.includes("/harvests/")) return new Response(JSON.stringify([{ id: 1, field_id: 1, harvest_date: "2026-10-20" }]));
+    if (url.includes("/images")) return new Response("[]");
     return handler(url, options);
   };
 }
@@ -195,7 +196,7 @@ test("users can create a field and event, then save and upload to that event", a
     calls.push({ url, options });
     if (url.includes("/fields/")) return response(options?.method === "POST" ? field : []);
     if (url.includes("/harvests/")) return response(options?.method === "POST" ? harvest : []);
-    if (url.includes("/upload")) return response([{ id: 2 }]);
+    if (url.includes("/upload")) return response({ records: [{ id: 2 }], imported_sheets: [], skipped_sheets: [] });
     return response(options?.method === "POST" ? { id: 1 } : { records: [] });
   });
   const view = await render(t, FieldEntryPage);
@@ -228,7 +229,10 @@ test("users can create a field and event, then save and upload to that event", a
     files: [new File(["plot_number\nP-2\n"], "records.csv", { type: "text/csv" })]
   } }));
   await act(async () => {
-    await upload.findByType("form").props.onSubmit({ preventDefault() {}, target: { reset() {} } });
+    await upload.findByType("form").props.onSubmit({
+      preventDefault() {},
+      currentTarget: { reset() {} }
+    });
   });
   const csvRequest = calls.find((call) => call.url.includes("/upload"));
   assert.match(csvRequest.url, /harvest_event_id=18$/);

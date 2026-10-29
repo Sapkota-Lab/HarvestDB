@@ -122,22 +122,17 @@ export default function FieldEntryPage() {
 
   const uploadCsv = async (file, sheetEventIds) => {
     const eventId = file.name.toLowerCase().endsWith(".csv") ? requireEventId() : null;
-    const records = await uploadHarvestRecordsCsv(eventId, file, sheetEventIds);
-    await refreshRows();
-    return records;
-  const uploadCsv = async (file) => {
-    const eventId = requireEventId();
     setIsSaving(true);
     setError(null);
     setStatus(null);
     try {
-      const records = await uploadHarvestRecordsCsv(eventId, file);
+      const result = await uploadHarvestRecordsCsv(eventId, file, sheetEventIds);
       try {
         await refreshRows();
       } catch {
-        setError("The CSV was imported, but the list could not refresh. Reload to see the latest records.");
+        setError("The file was imported, but the list could not refresh. Reload to see the latest records.");
       }
-      return records;
+      return result;
     } finally {
       setIsSaving(false);
     }
@@ -160,19 +155,6 @@ export default function FieldEntryPage() {
         {error ? <p className="form-error" role="alert">{error} <button type="button" disabled={!harvestEventId} onClick={() => setRetryRows((value) => value + 1)}>Reload records</button></p> : null}
         {status ? <p className="upload-status">{status}</p> : null}
       </div>
-      <CropRecordForm
-        record={editingRecord}
-        onSubmit={submitRecord}
-        onCancelEdit={() => setEditingRecord(null)}
-      />
-      <CsvUploadForm onPreview={previewUpload} onUpload={uploadCsv} />
-      <CropTable
-        rows={rows}
-        onEdit={setEditingRecord}
-        onDelete={handleDelete}
-      />
-      {!harvestEventId && <p>Select a field and harvest event to enter or upload records.</p>}
-      {loadingRows && <p role="status">Loading records…</p>}
       <fieldset className="field-entry" disabled={!harvestEventId || loadingRows || isCreating}>
         <CropRecordForm
           key={`record-${harvestEventId}`}
@@ -180,13 +162,11 @@ export default function FieldEntryPage() {
           onSubmit={submitRecord}
           onCancelEdit={() => setEditingRecord(null)}
         />
-        <CsvUploadForm key={`csv-${harvestEventId}`} onUpload={uploadCsv} />
-        <CropTable
-          rows={rows}
-          onEdit={setEditingRecord}
-          onDelete={handleDelete}
-        />
       </fieldset>
+      <CsvUploadForm onPreview={previewUpload} onUpload={uploadCsv} />
+      <CropTable rows={rows} onEdit={setEditingRecord} onDelete={handleDelete} />
+      {!harvestEventId && <p>Select a field and harvest event to enter records. Excel uploads can assign an event to each worksheet.</p>}
+      {loadingRows && <p role="status">Loading records…</p>}
     </fieldset>
   );
 }
