@@ -1,10 +1,12 @@
+import json
 from datetime import date
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.schemas.harvest_record import HarvestRecordCreate, HarvestRecordRead, HarvestRecordUpdate
+from app.models.harvest_event import HarvestEvent
+from app.schemas.harvest_record import HarvestRecordCreate, HarvestRecordRead, HarvestRecordUpdate, HarvestUploadRead
 from app.schemas.harvest_record_filter import HarvestRecordFilter
 from app.services.crop_service import CropService
 
@@ -79,22 +81,63 @@ def delete_harvest_record(record_id: int, db: Session = Depends(get_db)) -> None
         raise HTTPException(status_code=404, detail="Harvest record not found")
 
 
-@router.post("/upload", response_model=list[HarvestRecordRead])
+@router.post("/upload", response_model=HarvestUploadRead)
 async def upload_harvest_records(
-    harvest_event_id: int,
+    harvest_event_id: int | None = None,
     file: UploadFile = File(...),
+    sheet_event_ids: str | None = Form(default=None),
     db: Session = Depends(get_db),
-) -> list[HarvestRecordRead]:
-    if not file.filename or not file.filename.lower().endswith(".csv"):
-        raise HTTPException(status_code=400, detail="Uploaded file must be a .csv file")
+) -> HarvestUploadRead:
+    filename = (file.filename or "").lower()
+    if not filename.endswith((".csv", ".xlsx")):
+        raise HTTPException(status_code=400, detail="Uploaded file must be a .csv or .xlsx file")
 
     raw = await file.read()
     try:
+        if filename.endswith(".xlsx"):
+            if sheet_event_ids is None:
+                raise ValueError("Choose an event or skip each worksheet")
+            try:
+                parsed_event_ids = json.loads(sheet_event_ids)
+            except json.JSONDecodeError as exc:
+                raise ValueError("Worksheet event mappings must be valid JSON") from exc
+            if not isinstance(parsed_event_ids, dict) or any(
+                not isinstance(name, str)
+                or (
+                    event_id is not None
+                    and (
+                        isinstance(event_id, bool)
+                        or not isinstance(event_id, int)
+                        or event_id < 1
+                    )
+                )
+                for name, event_id in parsed_event_ids.items()
+            ):
+                raise ValueError("Worksheet event mappings must contain valid event IDs or null")
+            for event_id in parsed_event_ids.values():
+                if event_id is not None and db.get(HarvestEvent, event_id) is None:
+                    raise HTTPException(status_code=404, detail="Harvest event not found")
+            return crop_service.import_xlsx(db, raw, parsed_event_ids)
+        if harvest_event_id is None:
+            raise HTTPException(status_code=400, detail="Harvest event ID is required for CSV uploads")
+        if db.get(HarvestEvent, harvest_event_id) is None:
+            raise HTTPException(status_code=404, detail="Harvest event not found")
         csv_text = raw.decode("utf-8-sig")
+        return HarvestUploadRead(records=crop_service.import_csv(db, csv_text, harvest_event_id))
     except UnicodeDecodeError as exc:
-        raise HTTPException(status_code=400, detail="Uploaded file must be UTF-8 encoded") from exc
+        raise HTTPException(status_code=400, detail="CSV file must be UTF-8 encoded") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/upload/worksheets", response_model=list[str])
+async def list_upload_worksheets(
+    file: UploadFile = File(...),
+) -> list[str]:
+    if not file.filename or not file.filename.lower().endswith(".xlsx"):
+        raise HTTPException(status_code=400, detail="Uploaded file must be a .xlsx file")
 
     try:
-        return crop_service.import_csv(db, csv_text, harvest_event_id)
+        return crop_service.list_xlsx_worksheets(await file.read())
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

@@ -32,3 +32,14 @@ class HarvestRecordRead(HarvestRecordCreate):
 class HarvestRecordQueryRead(HarvestRecordRead):
     field_name: str
     harvest_date: date
+
+
+class ImportedSheet(BaseModel):
+    name: str
+    record_count: int
+
+
+class HarvestUploadRead(BaseModel):
+    records: list[HarvestRecordRead]
+    imported_sheets: list[ImportedSheet] = Field(default_factory=list)
+    skipped_sheets: list[str] = Field(default_factory=list)
