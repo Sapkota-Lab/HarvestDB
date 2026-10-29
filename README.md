@@ -1,32 +1,47 @@
 # HarvestDB
-CropCapture is a modular CRUD platform for agricultural field data collection and in-office querying.
+
+HarvestDB (CropCapture) is a web application for agricultural field data collection and harvest-record querying. It consists of a FastAPI backend, a React/Vite frontend, and a PostgreSQL database.
+
+## Features
+
+- Create and list fields and harvest events.
+- Create, query, update, and delete harvest records.
+- Filter and paginate harvest-record queries.
+- Import harvest records from CSV.
+- Attach images to harvest records.
+- Export harvest records as CSV.
+
+Authentication is not implemented yet; the login endpoint is a placeholder.
 
 ## Running Locally
 
-Prerequisites: Python 3.10+, Node.js 18+, and Docker (for the local PostgreSQL database).
+Prerequisites: Python 3.10+, Node.js 18+, and Docker with the Compose plugin.
 
-### 1. Database
+### 1. Start PostgreSQL
+
+From the repository root:
 
 ```bash
-cd db_testing
-docker compose up -d
+docker compose -f db_testing/docker-compose.yml up -d
 ```
 
-This starts PostgreSQL 15 on `localhost:5432` (user `myuser`, database `testing_db`). The schema is defined in `db_testing/initializeDB.sql`; see `TEST_DB_SETUP.md` for details on initializing and querying the test database.
+This starts PostgreSQL 15 on `localhost:5432` with database `testing_db`, user `myuser`, and password `testing_password`. To initialize the test schema and sample data, run `bash TEST_DB_SETUP.sh` from the repository root. **The setup script drops and recreates the test tables**, so do not run it if you need to preserve data in those tables. See [TEST_DB_SETUP.md](TEST_DB_SETUP.md) for details.
 
-### 2. Backend (FastAPI, http://localhost:8000)
+### 2. Install and start the backend
 
 ```bash
 cd backend
 python -m venv .venv
-# Windows: .venv\Scripts\activate    macOS/Linux: source .venv/bin/activate
+# Windows: .venv\Scripts\activate
+# macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Create `backend/.env` with the settings from `backend/app/core/config.py`. `BIRD_API_KEY` and `ALERT_EMAIL_TO` are required; the others have defaults:
+Create `backend/.env`. The settings below point both database connections at the local test database; set `DATABASE_URL` to your application database when using a separate database. `BIRD_API_KEY` and `ALERT_EMAIL_TO` are required settings, even when email alerts are disabled.
 
 ```env
-DATABASE_URL=postgresql://myuser:testing_password@localhost:5432/testing_db
+DATABASE_URL=postgresql+psycopg://myuser:testing_password@localhost:5432/testing_db
+TESTING_DATABASE_URL=postgresql+psycopg://myuser:testing_password@localhost:5432/testing_db
 SECRET_KEY=change-me
 BIRD_API_KEY=your-key
 ALERT_EMAIL_TO=you@example.com
@@ -39,11 +54,17 @@ Start the server from the `backend/` directory:
 uvicorn app.main:app --reload --port 8000
 ```
 
-Check it at <http://localhost:8000/api/v1/health>; interactive API docs are at <http://localhost:8000/docs>. Run backend tests with `pytest`.
+The API is available at <http://localhost:8000/api/v1>. The root URL redirects to the interactive API documentation at <http://localhost:8000/docs>. `GET /api/v1/health` checks that the API is running; `GET /api/v1/test-db` checks the test database connection.
 
-### 3. Frontend (React + Vite, http://localhost:5173)
+Run backend tests from `backend/` with:
 
-In a second terminal:
+```bash
+pytest
+```
+
+### 3. Install and start the frontend
+
+In another terminal, from the repository root:
 
 ```bash
 cd frontend
@@ -51,138 +72,65 @@ npm install
 npm run dev
 ```
 
-The frontend calls `http://localhost:8000/api/v1` by default. To point it elsewhere, set `VITE_API_BASE_URL` in `frontend/.env`. The backend only allows CORS from `http://localhost:5173` and `http://127.0.0.1:5173`. Run frontend tests with `npm test`.
+The frontend is served at <http://localhost:5173> and uses `http://localhost:8000/api/v1` by default. Set `VITE_API_BASE_URL` in `frontend/.env` to use a different API URL. The backend CORS configuration allows `http://localhost:5173` and `http://127.0.0.1:5173`.
 
-## Proposed Project Structure
+Run frontend tests from `frontend/` with `npm test`.
+
+## API Endpoints
+
+All routes below are prefixed with `/api/v1`.
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/health` | API health check |
+| `GET` | `/test-db` | Test-database connection check |
+| `POST` | `/auth/login` | Placeholder; authentication is not implemented |
+| `POST`, `GET` | `/fields/` | Create a field; list fields |
+| `POST`, `GET` | `/harvests/` | Create a harvest event (requires `field_id`); list harvest events (optional `field_id`) |
+| `POST` | `/harvest-records/?harvest_event_id={id}` | Create a harvest record |
+| `GET` | `/harvest-records/` | List records with optional `harvest_event_id`, `field_id`, `plot_number`, `harvest_date_from`, and `harvest_date_to` filters; supports `page` and `page_size` |
+| `PATCH`, `DELETE` | `/harvest-records/{record_id}` | Update or delete a harvest record |
+| `POST` | `/harvest-records/upload?harvest_event_id={id}` | Import records from a UTF-8 CSV file and save them |
+| `POST`, `GET` | `/harvest-records/{record_id}/images` | Upload images to a record; list its images |
+| `GET`, `DELETE` | `/harvest-records/images/{image_id}` | Retrieve or delete an image |
+| `GET` | `/exports/harvest-records.csv` | Export records from the application database as CSV |
+| `GET` | `/exports/test-harvest-records.csv` | Export records from the test database as CSV; requires that database to be available |
+
+Interactive API documentation at `/docs` includes request and response schemas.
+
+## Project Structure
 
 ```text
-CropCapture/
-	backend/
-		app/
-			api/v1/endpoints/ (fields, harvests, harvest records, auth, exports)
-			core/
-			db/
-			models/ (field, harvest_event, harvest_record)
-			schemas/ (field, harvest_event, harvest_record)
-			services/
-			main.py
-		tests/
-		requirements.txt
-	frontend/
-		src/
-			components/
-			pages/
-			services/
-			App.jsx
-			main.jsx
-		package.json
-		.env.example
-	infra/
-		docker-compose.yml
-	docs/
-		architecture.md
-		decisions.md
-		open-questions.md
+HarvestDB/
+├── backend/
+│   ├── app/
+│   │   ├── api/v1/endpoints/  # FastAPI route handlers
+│   │   ├── core/              # Settings, security, and logging
+│   │   ├── db/                # SQLAlchemy base and sessions
+│   │   ├── models/            # Fields, harvest events, records, images, users
+│   │   ├── schemas/           # API request and response models
+│   │   └── services/          # Business logic and import/export
+│   ├── scripts/               # Data import utilities
+│   ├── tests/                 # Backend tests
+│   └── requirements.txt
+├── db_testing/                # PostgreSQL Compose file and SQL setup scripts
+├── docs/                      # Feature and import documentation
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   └── services/
+│   ├── tests/
+│   └── package.json
+├── TEST_DB_SETUP.md
+└── TEST_DB_SETUP.sh
 ```
 
-## What Each Folder Does
+## Data Model
 
-### Top-level
+- **Field** represents a physical research location and can have multiple harvest events.
+- **Harvest event** belongs to a field and stores the harvest date, optional harvest number, and notes.
+- **Harvest record** belongs to a harvest event and stores a plot number and flexible measurement data in PostgreSQL `JSONB`.
+- **Record image** stores an image and its metadata for a harvest record.
 
-- `backend/`: FastAPI application code, API contracts, business logic, and tests.
-- `frontend/`: React user interface for field entry and in-office querying.
-
-### Backend (`backend/app`)
-
-- `api/`: HTTP layer. Defines routes and request/response wiring.
-- `api/v1/endpoints/`: Versioned endpoint modules (fields, harvests, harvest records, auth, exports).
-- `core/`: Cross-cutting app concerns like config and security helpers.
-- `db/`: SQLAlchemy base and database session lifecycle.
-- `models/`: ORM table/entity definitions for persistence.
-- `schemas/`: Pydantic request/response models for validation and serialization.
-- `services/`: Business logic layer called by endpoints.
-- `main.py`: FastAPI app factory and router registration.
-
-### Other Backend Files
-
-- `backend/tests/`: Backend test suite.
-- `backend/requirements.txt`: Python dependency list.
-- `backend/.env.example`: Example backend environment variables.
-
-### Frontend (`frontend/src`)
-
-- `components/`: Reusable UI pieces used across pages.
-- `pages/`: Screen-level route/view composition.
-- `services/`: API client functions and data fetching logic.
-- `App.jsx`: App shell and high-level view orchestration.
-- `main.jsx`: Frontend entry point and React bootstrap.
-
-## Database Structure
-
-The database is organized around the physical field first, followed by each data collection event and the individual records collected during that event.
-
-### Field
-
-Represents a physical research location, such as `Lexington`. A field can have many harvest events over time.
-
-Typical fields:
-
-- `id`
-- `name`
-- `location`
-- `description`
-
-### HarvestEvent
-
-Represents one collection session for a field. The harvest date belongs here because it describes when that field was measured. This also allows multiple fields to have events on the same date.
-
-Typical fields:
-
-- `id`
-- `field_id` (foreign key to `Field`)
-- `harvest_date`
-- `harvest_number`
-- `notes`
-
-### HarvestRecord
-
-Represents one row of measurements collected during a harvest event. For the Lexington field, this contains values such as genotype, serial number, location, harvest, marketable weights/counts, and unmarketable weights/counts.
-
-Typical fields:
-
-- `id` (primary key)
-- `harvest_event_id` (foreign key to `HarvestEvent`)
-- `plot_number`
-- `dynamic_data` (PostgreSQL `JSONB` for year- or plot-specific measurements)
-
-The harvest event supplies the field and harvest date, while each record identifies its plot. Measurement fields belong in `dynamic_data`, allowing collection templates to change without a schema change. Existing databases need a migration to remove the redundant `field_name`, `year`, and `record_date` columns if they already exist.
-
-## Current Skeleton Endpoints
-
-- `GET /api/v1/health`
-- `POST /api/v1/auth/login` (placeholder)
-- `POST /api/v1/fields/` (stub)
-- `GET /api/v1/fields/` (stub)
-- `POST /api/v1/harvests/?field_id={field_id}` (stub)
-- `GET /api/v1/harvests/?field_id={field_id}` (stub)
-- `POST /api/v1/harvest-records/?harvest_event_id={harvest_event_id}` (stub)
-- `GET /api/v1/harvest-records/?harvest_event_id={harvest_event_id}` (stub)
-- `POST /api/v1/harvest-records/upload?harvest_event_id={harvest_event_id}` (CSV bulk import; parses and prints rows, does not persist yet — see issue #3)
-- `GET /api/v1/exports/harvest-records.csv` (placeholder)
-
-## Architecture Notes
-
-- Keep route handlers thin. Move business logic into `backend/app/services`.
-- Keep persistence concerns in models/session and avoid DB calls in frontend.
-- Organize records by field first, then harvest event/date, then individual measurements.
-- Keep field-specific measurements optional until each field's collection template is finalized.
-- API versioning starts at `v1` for compatibility as requirements evolve.
-
-## Next Implementation Steps
-
-1. Finalize auth approach (OAuth vs local JWT user system).
-2. Confirm ORM and migration workflow (SQLAlchemy + Alembic recommended).
-3. Implement repository and service logic for real crop CRUD.
-4. Add filtering/sorting/pagination for query workflows.
-5. Implement CSV export with streaming response.
-6. Add offline/low-connectivity strategy if required for field usage.
+The harvest event provides the field and date context for each record, while `dynamic_data` holds measurements that may vary by collection or year.
