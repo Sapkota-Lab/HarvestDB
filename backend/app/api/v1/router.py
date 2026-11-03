@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import auth, crops, exports, fields, health, harvests
+from app.api.v1.endpoints import auth, crops, exports, fields, health, harvests,seed_inventory
 
 api_router = APIRouter()
 api_router.include_router(health.router, tags=["health"])
@@ -9,3 +9,4 @@ api_router.include_router(fields.router, prefix="/fields", tags=["fields"])
 api_router.include_router(harvests.router, prefix="/harvests", tags=["harvests"])
 api_router.include_router(crops.router, prefix="/harvest-records", tags=["harvest-records"])
 api_router.include_router(exports.router, prefix="/exports", tags=["exports"])
+api_router.include_router(seed_inventory.router, prefix="/seeds", tags=["seed-inventory"])

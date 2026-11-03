@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api/v1";
 
 export async function fetchFields() {
   const response = await fetch(`${API_BASE_URL}/fields/`);
@@ -68,4 +68,110 @@ export async function fetchHarvestRecords(harvestEventId) {
   }
 
   return response.json();
+}
+
+//Seed Inventory API functions
+
+async function handleSeedResponse(response, fallbackMessage) {
+  if (!response.ok) {
+    const error = await response.json().catch(() => null);
+
+    const message =
+      typeof error?.detail === "string"
+        ? error.detail
+        : error?.detail
+          ? JSON.stringify(error.detail)
+          : fallbackMessage;
+
+    throw new Error(message);
+  }
+
+  if (response.status === 204) {
+    return null;
+  }
+
+  return response.json();
+}
+
+
+// Fetch all seeds, optionally filtering by crop type
+export async function fetchSeeds(cropType = null) {
+  const query = cropType
+    ? `?crop_type=${encodeURIComponent(cropType)}`
+    : "";
+
+  const response = await fetch(
+    `${API_BASE_URL}/seeds/${query}`
+  );
+
+  return handleSeedResponse(
+    response,
+    "Failed to fetch seed inventory"
+  );
+}
+
+
+// Create a new seed record
+export async function createSeed(payload) {
+  const response = await fetch(`${API_BASE_URL}/seeds/`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+
+  return handleSeedResponse(
+    response,
+    "Failed to create seed record"
+  );
+}
+
+
+// Fetch one seed by ID
+export async function fetchSeed(seedId) {
+  const response = await fetch(
+    `${API_BASE_URL}/seeds/${seedId}`
+  );
+
+  return handleSeedResponse(
+    response,
+    "Failed to fetch seed record"
+  );
+}
+
+
+// Update an existing seed record
+export async function updateSeed(seedId, payload) {
+  const response = await fetch(
+    `${API_BASE_URL}/seeds/${seedId}`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    }
+  );
+
+  return handleSeedResponse(
+    response,
+    "Failed to update seed record"
+  );
+}
+
+
+// Delete a seed record
+export async function deleteSeed(seedId) {
+  const response = await fetch(
+    `${API_BASE_URL}/seeds/${seedId}`,
+    {
+      method: "DELETE"
+    }
+  );
+
+  return handleSeedResponse(
+    response,
+    "Failed to delete seed record"
+  );
 }

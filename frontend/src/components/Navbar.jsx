@@ -17,6 +17,13 @@ export default function Navbar({ activeView, onNavigate, views }) {
         >
           Query Records
         </button>
+        <button
+          className={activeView === views.SEED_INVENTORY ? "active" : ""}
+          onClick={() => onNavigate(views.SEED_INVENTORY)}
+          type="button"
+        >
+          Seed Inventory
+        </button>
       </nav>
     </header>
   );

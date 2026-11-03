@@ -119,3 +119,173 @@ td {
   border-bottom: 1px solid var(--line);
   text-align: left;
 }
+
+
+/* ==============================
+   Seed Inventory
+   ============================== */
+
+.seed-inventory-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.seed-header h1 {
+  margin-bottom: 0.4rem;
+}
+
+.seed-header p {
+  color: #5a6350;
+  margin-top: 0;
+}
+
+/* Inventory panels */
+.seed-card {
+  margin-bottom: 0;
+}
+
+.seed-card h2 {
+  margin-top: 0;
+  font-size: 1.2rem;
+}
+
+/* Entry form */
+.seed-form-grid {
+  margin-top: 1rem;
+}
+
+.seed-full-width {
+  grid-column: 1 / -1;
+}
+
+.seed-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.seed-form-actions button {
+  cursor: pointer;
+}
+
+.seed-form-actions .primary {
+  margin-top: 0;
+}
+
+.seed-cancel {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  padding: 0.65rem 1rem;
+  border-radius: 8px;
+}
+
+.seed-form-actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+/* Inventory table */
+.seed-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.seed-table th {
+  background: #eaefe2;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.seed-table tbody tr:hover {
+  background: #f3f7ef;
+}
+
+.seed-row-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.seed-row-actions button {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--primary);
+  border-radius: 6px;
+  padding: 0.4rem 0.7rem;
+  cursor: pointer;
+}
+
+.seed-row-actions button:hover {
+  background: #eaefe2;
+}
+
+.seed-row-actions .seed-delete {
+  color: #a83232;
+}
+
+.seed-row-actions .seed-delete:hover {
+  background: #fbeaea;
+}
+
+/* Error messages */
+.seed-error {
+  padding: 0.75rem 1rem;
+  background: #fbeaea;
+  color: #a83232;
+  border: 1px solid #e8baba;
+  border-radius: 8px;
+}
+
+/* Responsive layout */
+@media (max-width: 650px) {
+  .seed-table-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .seed-table-header input {
+    max-width: 100%;
+  }
+
+  .seed-form-actions {
+    flex-wrap: wrap;
+  }
+}
+/* ==============================
+   Seed Inventory Filtering
+   ============================== */
+
+.seed-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(170px, 1fr)
+  );
+  gap: 0.75rem;
+  margin: 1rem 0 1.5rem;
+  padding: 1rem;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.seed-filter-grid label {
+  font-weight: 500;
+}
+
+.seed-filter-grid select,
+.seed-filter-grid input {
+  background: var(--surface);
+  color: var(--text);
+}
+
+/* Seed Inventory form dropdowns */
+.seed-form-grid select {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.seed-form-grid label {
+  min-width: 0;
+}
