@@ -22,3 +22,17 @@ CREATE TABLE harvest_records (
     dynamic_data JSONB NOT NULL DEFAULT '{}'::jsonb,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE record_images (
+    id SERIAL PRIMARY KEY,
+    harvest_record_id INT NOT NULL REFERENCES harvest_records(id) ON DELETE CASCADE,
+    data BYTEA NOT NULL,
+    original_filename VARCHAR(255),
+    content_type VARCHAR(64) NOT NULL,
+    size_bytes BIGINT NOT NULL,
+    category VARCHAR(32) NOT NULL DEFAULT 'Other',
+    caption VARCHAR(512),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX ix_record_images_harvest_record_id ON record_images(harvest_record_id);

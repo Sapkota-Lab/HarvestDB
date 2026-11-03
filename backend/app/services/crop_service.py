@@ -1,47 +1,250 @@
 import csv
 import io
+import json
+from xml.etree.ElementTree import ParseError
+from zipfile import BadZipFile
 
+from openpyxl import load_workbook
+from openpyxl.utils.exceptions import InvalidFileException
 from pydantic import ValidationError
+from sqlalchemy.orm import Session
 
-from app.schemas.harvest_record import HarvestRecordCreate, HarvestRecordRead
+from app.models.field import Field
+from app.models.harvest_event import HarvestEvent
+from app.models.harvest_record import HarvestRecord
+from app.schemas.harvest_record import HarvestRecordCreate, HarvestRecordQueryRead, HarvestRecordRead, HarvestRecordUpdate, HarvestUploadRead, ImportedSheet
+from app.schemas.harvest_record_filter import HarvestRecordFilter
 
 
 class CropService:
-    def create(self, payload: HarvestRecordCreate, harvest_event_id: int) -> HarvestRecordRead:
-        return HarvestRecordRead(id=1, harvest_event_id=harvest_event_id, **payload.model_dump())
+    def create(
+        self, db: Session, payload: HarvestRecordCreate, harvest_event_id: int
+    ) -> HarvestRecordRead | None:
+        if db.get(HarvestEvent, harvest_event_id) is None:
+            return None
 
-    def import_csv(self, csv_text: str, harvest_event_id: int) -> list[HarvestRecordRead]:
-        # printing instead of inserting until issue #4 (testing DB) is ready — swap this
-        # for a real insert once there's a DB to insert into
+        record = HarvestRecord(
+            harvest_event_id=harvest_event_id,
+            plot_number=payload.plot_number,
+            dynamic_data=payload.dynamic_data,
+        )
+        db.add(record)
+        db.commit()
+        db.refresh(record)
+        return _to_read(record)
+
+    def update(
+        self, db: Session, record_id: int, payload: HarvestRecordUpdate
+    ) -> HarvestRecordRead | None:
+        record = db.get(HarvestRecord, record_id)
+        if record is None:
+            return None
+
+        updates = payload.model_dump(exclude_unset=True)
+        if "plot_number" in updates:
+            record.plot_number = updates["plot_number"]
+        if "dynamic_data" in updates:
+            record.dynamic_data = updates["dynamic_data"]
+
+        db.commit()
+        db.refresh(record)
+        return _to_read(record)
+
+    def delete(self, db: Session, record_id: int) -> bool:
+        record = db.get(HarvestRecord, record_id)
+        if record is None:
+            return False
+
+        db.delete(record)
+        db.commit()
+        return True
+
+    def import_csv(self, db: Session, csv_text: str, harvest_event_id: int) -> list[HarvestRecordRead]:
         reader = csv.DictReader(io.StringIO(csv_text))
-        records: list[HarvestRecordRead] = []
+        if not reader.fieldnames:
+            raise ValueError("CSV file must include a header row")
 
-        for line_number, row in enumerate(reader, start=2):  # header occupies line 1
+        required_columns = {"plot_number"}
+        missing_columns = required_columns - set(reader.fieldnames)
+        if missing_columns:
+            missing_column_names = ", ".join(sorted(missing_columns))
+            raise ValueError(f"Missing required column: {missing_column_names}")
+
+        return self._import_rows(db, enumerate(reader, start=2), harvest_event_id)
+
+    def list_xlsx_worksheets(self, raw: bytes) -> list[str]:
+        workbook = None
+        try:
+            workbook = load_workbook(io.BytesIO(raw), read_only=True, data_only=False)
+            if not workbook.worksheets:
+                raise ValueError("XLSX file must contain a worksheet")
+            return [sheet.title for sheet in workbook.worksheets]
+        except (BadZipFile, InvalidFileException, ParseError, KeyError, EOFError, OSError) as exc:
+            raise ValueError("Could not read XLSX file. Upload a valid, unencrypted .xlsx workbook.") from exc
+        finally:
+            if workbook is not None:
+                workbook.close()
+
+    def import_xlsx(
+        self, db: Session, raw: bytes, sheet_event_ids: dict[str, int | None]
+    ) -> HarvestUploadRead:
+        workbook = None
+        try:
+            workbook = load_workbook(io.BytesIO(raw), read_only=True, data_only=False)
+            if not workbook.worksheets:
+                raise ValueError("XLSX file must contain a worksheet")
+
+            sheet_names = [sheet.title for sheet in workbook.worksheets]
+            if set(sheet_event_ids) != set(sheet_names):
+                raise ValueError("Choose an event or skip each worksheet")
+
+            imported_sheets = []
+            skipped_sheets = []
+            records = []
+            for sheet in workbook.worksheets:
+                harvest_event_id = sheet_event_ids[sheet.title]
+                if harvest_event_id is None:
+                    skipped_sheets.append(sheet.title)
+                    continue
+
+                rows = sheet.iter_rows()
+                header_cells = next(rows, ())
+                headers = [
+                    str(cell.value).strip() if cell.value is not None else ""
+                    for cell in header_cells
+                ]
+                if not any(headers):
+                    raise ValueError(f"{sheet.title}: worksheet must include a header row")
+                if "plot_number" not in headers:
+                    raise ValueError(f"{sheet.title}: Missing required column: plot_number")
+                named_headers = [header for header in headers if header]
+                if len(named_headers) != len(set(named_headers)):
+                    raise ValueError(f"{sheet.title}: XLSX column names must not be repeated")
+
+                def worksheet_rows():
+                    for row_number, cells in enumerate(rows, start=2):
+                        if all(cell.value is None or cell.value == "" for cell in cells):
+                            continue
+                        if any(cell.data_type == "f" for cell in cells):
+                            raise ValueError(
+                                f"Row {row_number}: replace formulas with values before uploading"
+                            )
+                        if any(cell.data_type == "e" for cell in cells):
+                            raise ValueError(
+                                f"Row {row_number}: fix Excel cell errors before uploading"
+                            )
+                        yield row_number, {
+                            header: cell.value for header, cell in zip(headers, cells) if header
+                        }
+
+                try:
+                    sheet_records = self._build_records(worksheet_rows(), harvest_event_id)
+                except ValueError as exc:
+                    raise ValueError(f"{sheet.title}: {exc}") from exc
+
+                records.extend(sheet_records)
+                imported_sheets.append(
+                    ImportedSheet(name=sheet.title, record_count=len(sheet_records))
+                )
+
+            db.add_all(records)
+            db.commit()
+            return HarvestUploadRead(
+                records=[_to_read(record) for record in records],
+                imported_sheets=imported_sheets,
+                skipped_sheets=skipped_sheets,
+            )
+        except (BadZipFile, InvalidFileException, ParseError, KeyError, EOFError, OSError) as exc:
+            raise ValueError("Could not read XLSX file. Upload a valid, unencrypted .xlsx workbook.") from exc
+        finally:
+            if workbook is not None:
+                workbook.close()
+
+    def _import_rows(self, db: Session, rows, harvest_event_id: int) -> list[HarvestRecordRead]:
+        records = self._build_records(rows, harvest_event_id)
+        db.add_all(records)
+        db.commit()
+        return [_to_read(record) for record in records]
+
+    def _build_records(self, rows, harvest_event_id: int) -> list[HarvestRecord]:
+        records: list[HarvestRecord] = []
+        for line_number, row in rows:
             try:
-                payload = HarvestRecordCreate(**_clean_row(row))
+                data = _clean_row(row)
+                if data.get("plot_number") is not None:
+                    data["plot_number"] = str(data["plot_number"])
+                dynamic_data = data.get("dynamic_data")
+                if dynamic_data is None:
+                    data.pop("dynamic_data", None)
+                else:
+                    data["dynamic_data"] = json.loads(dynamic_data)
+                payload = HarvestRecordCreate(**data)
+            except (json.JSONDecodeError, TypeError) as exc:
+                raise ValueError(f"Row {line_number}: dynamic_data must be valid JSON") from exc
             except ValidationError as exc:
                 raise ValueError(f"Row {line_number}: {exc}") from exc
 
-            print(f"[CSV import] harvest_event_id={harvest_event_id} row={line_number} {payload.model_dump()}")
             records.append(
-                HarvestRecordRead(id=len(records) + 1, harvest_event_id=harvest_event_id, **payload.model_dump())
+                HarvestRecord(
+                    harvest_event_id=harvest_event_id,
+                    plot_number=payload.plot_number,
+                    dynamic_data=payload.dynamic_data,
+                )
             )
-
         return records
 
-    # has to stay below import_csv — a method named `list` shadows the builtin `list`,
-    # which breaks the `list[...]` type hints on anything defined after it in this class
-    def list(self, harvest_event_id: int | None = None) -> list[HarvestRecordRead]:
-        return []
+    def list_records(
+        self, db: Session, filters: HarvestRecordFilter
+    ) -> tuple[list[HarvestRecordQueryRead], int]:
+        query = (
+            db.query(HarvestRecord, HarvestEvent.harvest_date, Field.name.label("field_name"))
+            .select_from(HarvestRecord)
+            .join(HarvestEvent, HarvestRecord.harvest_event_id == HarvestEvent.id)
+            .join(Field, HarvestEvent.field_id == Field.id)
+        )
+
+        if filters.harvest_event_id is not None:
+            query = query.filter(HarvestRecord.harvest_event_id == filters.harvest_event_id)
+        if filters.field_id is not None:
+            query = query.filter(HarvestEvent.field_id == filters.field_id)
+        if filters.plot_number is not None:
+            query = query.filter(HarvestRecord.plot_number.ilike(f"%{filters.plot_number}%"))
+        if filters.harvest_date_from is not None:
+            query = query.filter(HarvestEvent.harvest_date >= filters.harvest_date_from)
+        if filters.harvest_date_to is not None:
+            query = query.filter(HarvestEvent.harvest_date <= filters.harvest_date_to)
+
+        total_count = query.count()
+        query = query.order_by(HarvestRecord.id)
+        offset = (filters.page - 1) * filters.page_size
+        records = query.offset(offset).limit(filters.page_size).all()
+
+        return [
+            HarvestRecordQueryRead(
+                **HarvestRecordRead.model_validate(record).model_dump(),
+                harvest_date=harvest_date,
+                field_name=field_name,
+            )
+            for record, harvest_date, field_name in records
+        ], total_count
+
+
+def _to_read(record: HarvestRecord) -> HarvestRecordRead:
+    return HarvestRecordRead(
+        id=record.id,
+        harvest_event_id=record.harvest_event_id,
+        plot_number=record.plot_number,
+        dynamic_data=record.dynamic_data or {},
+        created_at=record.created_at,
+    )
 
 
 def _clean_row(row: dict) -> dict:
-    # DictReader turns blank cells into "" and dumps any extra unnamed columns under a None key
     cleaned = {}
     for key, value in row.items():
         if key is None:
             continue
         if isinstance(value, str):
             value = value.strip()
-        cleaned[key] = value or None
+        cleaned[key] = None if value == "" else value
     return cleaned

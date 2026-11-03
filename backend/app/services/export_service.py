@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 class ExportService:
     def harvest_records_as_csv(self, db: Session) -> str:
         result = db.execute(
-            text(""" 
+            text("""
             SELECT
                 fields.name AS field_name,
                 harvest_events.harvest_date,

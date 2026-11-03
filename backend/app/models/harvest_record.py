@@ -2,9 +2,10 @@ from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, String, func
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.models.record_image import RecordImage
 
 
 class HarvestRecord(Base):
@@ -15,3 +16,6 @@ class HarvestRecord(Base):
     plot_number: Mapped[str] = mapped_column(String(64), index=True)
     dynamic_data: Mapped[dict] = mapped_column(JSONB, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    images: Mapped[list[RecordImage]] = relationship(
+        cascade="all, delete-orphan", passive_deletes=True, lazy="select"
+    )
