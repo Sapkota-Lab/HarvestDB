@@ -95,6 +95,11 @@ All routes below are prefixed with `/api/v1`.
 | `GET`, `DELETE` | `/harvest-records/images/{image_id}` | Retrieve or delete an image |
 | `GET` | `/exports/harvest-records.csv` | Export records from the application database as CSV |
 | `GET` | `/exports/test-harvest-records.csv` | Export records from the test database as CSV; requires that database to be available |
+| `POST` | `/seeds/` | Create a new seed inventory record |
+| `GET` | `/seeds/` | List all seed inventory records; supports optional `crop_type` filter |
+| `GET` | `/seeds/{seed_id}` | Retrieve a seed inventory record by ID |
+| `PUT` | `/seeds/{seed_id}` | Update an existing seed inventory record |
+| `DELETE` | `/seeds/{seed_id}` | Delete a seed inventory record |
 
 Interactive API documentation at `/docs` includes request and response schemas.
 
