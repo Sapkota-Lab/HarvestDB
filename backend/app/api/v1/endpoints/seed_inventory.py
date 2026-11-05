@@ -80,7 +80,7 @@ def delete_seed(seed_id: int, db:Session = Depends(get_test_db)):
     seed = db.get(SeedInventory, seed_id)
 
     if seed is None:
-        raise HTTPException(status_code=404, details = "Seed record not found")
+        raise HTTPException(status_code=404, detail = "Seed record not found")
 
     db.delete(seed)
     db.commit()
