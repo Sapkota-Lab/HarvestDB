@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.session import get_test_db
+from app.db.session import get_db
 from app.models.seed_inventory import SeedInventory
 from app.schemas.seed_inventory import (
     SeedInventoryCreate,
@@ -15,7 +15,7 @@ router = APIRouter()
 #create a new seed inventory record
 @router.post("/", response_model=SeedInventoryRead, status_code=status.HTTP_201_CREATED,)
 
-def create_seed(payload: SeedInventoryCreate, db: Session = Depends(get_test_db),):
+def create_seed(payload: SeedInventoryCreate, db: Session = Depends(get_db),):
     seed = SeedInventory(**payload.model_dump())
 
     db.add(seed)
@@ -27,7 +27,7 @@ def create_seed(payload: SeedInventoryCreate, db: Session = Depends(get_test_db)
 #retrieve all seed inventory
 @router.get("/", response_model=list[SeedInventoryRead],)
 
-def list_seeds(crop_type: str | None = None, db: Session = Depends(get_test_db),):
+def list_seeds(crop_type: str | None = None, db: Session = Depends(get_db),):
     query = select(SeedInventory)
 
     if crop_type:
@@ -41,7 +41,7 @@ def list_seeds(crop_type: str | None = None, db: Session = Depends(get_test_db),
 
 @router.get("/{seed_id}", response_model=SeedInventoryRead)
 
-def get_seed(seed_id:int, db:Session = Depends(get_test_db)):
+def get_seed(seed_id:int, db:Session = Depends(get_db)):
     seed = db.get(SeedInventory, seed_id)
 
     if seed is None:
@@ -49,22 +49,30 @@ def get_seed(seed_id:int, db:Session = Depends(get_test_db)):
 
     return seed
 
-#Update a seed record
-
-@router.patch("/{seed_id}", response_model = SeedInventoryRead)
-
-def update_seed(seed_id: int, payload: SeedInventoryUpdate, db:Session = Depends(get_test_db),):
+## Update an existing seed inventory record
+@router.put("/{seed_id}", response_model=SeedInventoryRead)
+def update_seed(
+    seed_id: int,
+    payload: SeedInventoryUpdate,
+    db: Session = Depends(get_db),
+):
     seed = db.get(SeedInventory, seed_id)
 
     if seed is None:
-        raise HTTPException(status_code=404, detail="Seed record not found")
+        raise HTTPException(
+            status_code=404,
+            detail="Seed record not found",
+        )
 
-    updates = payload.model_dump(exclude_unset = True)
+    updates = payload.model_dump()
 
-    if "crop_type" in updates and updates ["crop_type"] is None:
-        raise HTTPException(status_code=422, detail="Crop type cannot be null",)
+    if "crop_type" in updates and updates["crop_type"] is None:
+        raise HTTPException(
+            status_code=422,
+            detail="Crop type cannot be null",
+        )
 
-    for field,value in updates.items():
+    for field, value in updates.items():
         setattr(seed, field, value)
 
     db.commit()
@@ -76,7 +84,7 @@ def update_seed(seed_id: int, payload: SeedInventoryUpdate, db:Session = Depends
 
 @router.delete("/{seed_id}", status_code=status.HTTP_204_NO_CONTENT)
 
-def delete_seed(seed_id: int, db:Session = Depends(get_test_db)):
+def delete_seed(seed_id: int, db:Session = Depends(get_db)):
     seed = db.get(SeedInventory, seed_id)
 
     if seed is None:

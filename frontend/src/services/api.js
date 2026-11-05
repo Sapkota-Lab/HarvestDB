@@ -252,7 +252,7 @@ export async function updateSeed(seedId, payload) {
   const response = await fetch(
     `${API_BASE_URL}/seeds/${seedId}`,
     {
-      method: "PATCH",
+      method: "PUT",
       headers: {
         "Content-Type": "application/json"
       },
