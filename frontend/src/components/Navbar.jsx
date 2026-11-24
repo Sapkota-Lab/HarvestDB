@@ -1,4 +1,4 @@
-export default function Navbar({ activeView, onNavigate, views }) {
+export default function Navbar({ activeView, onNavigate, views, user, onLogout, }) {
   return (
     <header className="navbar">
       <strong>CropCapture</strong>
@@ -25,6 +25,19 @@ export default function Navbar({ activeView, onNavigate, views }) {
           Seed Inventory
         </button>
       </nav>
+      <div className="nav-account">
+        <span className="nav-user-email">
+          {user?.email}
+        </span>
+
+        <button
+          className="logout-button"
+          onClick={onLogout}
+          type="button"
+        >
+          Log Out
+        </button>
+      </div>
     </header>
   );
 }
