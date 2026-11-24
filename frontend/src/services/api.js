@@ -1,8 +1,30 @@
 import { readApiError } from "./apiError";
+import { getAccessToken, removeAccessToken} from "./authService";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api/v1";
 
+async function authenticationFetch(url, options={}){
+  const token = getAccessToken();
+  const headers = new Headers(options.headers);
+
+  const apiOrigin = new URL(API_BASE_URL, window.location.origin).origin;
+  const requestUrl = new URL(url, window.location.origin);
+
+  if (requestUrl.origin != apiOrigin){
+    throw new Error("Unexpected API origin.");
+  }
+  if (token){
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+  const response = await fetch(url, {...options, headers,});
+  if (response.status == 401 && getAccessToken() == token){
+    removeAccessToken();
+    window.distpatchEvent(new Event("harvestdb:session-expired"));
+  }
+  return response;
+}
+
 export async function fetchFields() {
-  const response = await fetch(`${API_BASE_URL}/fields/`);
+  const response = await authenticationFetch(`${API_BASE_URL}/fields/`);
 
   if (!response.ok) {
     throw new Error(await readApiError(response, "Failed to fetch fields"));
@@ -12,7 +34,7 @@ export async function fetchFields() {
 }
 
 export async function createHarvestEvent(fieldId, payload) {
-  const response = await fetch(`${API_BASE_URL}/harvests/?field_id=${fieldId}`, {
+  const response = await authenticationFetch(`${API_BASE_URL}/harvests/?field_id=${fieldId}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -28,7 +50,7 @@ export async function createHarvestEvent(fieldId, payload) {
 }
 
 export async function createField(payload) {
-  const response = await fetch(`${API_BASE_URL}/fields/`, {
+  const response = await authenticationFetch(`${API_BASE_URL}/fields/`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
@@ -40,7 +62,7 @@ export async function createField(payload) {
 }
 
 export async function fetchHarvestEvents(fieldId) {
-  const response = await fetch(`${API_BASE_URL}/harvests/?field_id=${fieldId}`);
+  const response = await authenticationFetch(`${API_BASE_URL}/harvests/?field_id=${fieldId}`);
   if (!response.ok) {
     throw new Error(await readApiError(response, "Failed to fetch harvest events"));
   }
@@ -48,7 +70,7 @@ export async function fetchHarvestEvents(fieldId) {
 }
 
 export async function createHarvestRecord(harvestEventId, payload) {
-  const response = await fetch(`${API_BASE_URL}/harvest-records/?harvest_event_id=${harvestEventId}`, {
+  const response = await authenticationFetch(`${API_BASE_URL}/harvest-records/?harvest_event_id=${harvestEventId}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -64,7 +86,7 @@ export async function createHarvestRecord(harvestEventId, payload) {
 }
 
 export async function updateHarvestRecord(recordId, payload) {
-  const response = await fetch(`${API_BASE_URL}/harvest-records/${recordId}`, {
+  const response = await authenticationFetch(`${API_BASE_URL}/harvest-records/${recordId}`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json"
@@ -80,7 +102,7 @@ export async function updateHarvestRecord(recordId, payload) {
 }
 
 export async function deleteHarvestRecord(recordId) {
-  const response = await fetch(`${API_BASE_URL}/harvest-records/${recordId}`, {
+  const response = await authenticationFetch(`${API_BASE_URL}/harvest-records/${recordId}`, {
     method: "DELETE"
   });
 
@@ -93,7 +115,7 @@ export async function listHarvestUploadWorksheets(file) {
   const formData = new FormData();
   formData.append("file", file);
 
-  const response = await fetch(`${API_BASE_URL}/harvest-records/upload/worksheets`, {
+  const response = await authenticationFetch(`${API_BASE_URL}/harvest-records/upload/worksheets`, {
     method: "POST",
     body: formData
   });
@@ -113,7 +135,7 @@ export async function uploadHarvestRecordsCsv(harvestEventId, file, sheetEventId
   }
 
   const query = harvestEventId ? `?harvest_event_id=${harvestEventId}` : "";
-  const response = await fetch(`${API_BASE_URL}/harvest-records/upload${query}`, {
+  const response = await authenticationFetch(`${API_BASE_URL}/harvest-records/upload${query}`, {
     method: "POST",
     body: formData
   });
@@ -148,7 +170,7 @@ export async function fetchHarvestRecords(filters = {}) {
   });
 
   const query = params.toString() ? `?${params.toString()}` : "";
-  const response = await fetch(`${API_BASE_URL}/harvest-records/${query}`);
+  const response = await authenticationFetch(`${API_BASE_URL}/harvest-records/${query}`);
 
   if (!response.ok) {
     throw new Error(await readApiError(response, "Failed to fetch harvest records"));
@@ -167,7 +189,7 @@ export function imageUrl(image) {
 }
 
 export async function fetchRecordImages(recordId) {
-  const response = await fetch(`${API_BASE_URL}/harvest-records/${recordId}/images`);
+  const response = await authenticationFetch(`${API_BASE_URL}/harvest-records/${recordId}/images`);
 
   if (!response.ok) {
     throw new Error(await readApiError(response, "Failed to fetch images"));
@@ -206,7 +228,7 @@ export async function fetchSeeds(cropType = null) {
     ? `?crop_type=${encodeURIComponent(cropType)}`
     : "";
 
-  const response = await fetch(
+  const response = await authenticationFetch(
     `${API_BASE_URL}/seeds/${query}`
   );
 
@@ -219,7 +241,7 @@ export async function fetchSeeds(cropType = null) {
 
 // Create a new seed record
 export async function createSeed(payload) {
-  const response = await fetch(`${API_BASE_URL}/seeds/`, {
+  const response = await authenticationFetch(`${API_BASE_URL}/seeds/`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -236,7 +258,7 @@ export async function createSeed(payload) {
 
 // Fetch one seed by ID
 export async function fetchSeed(seedId) {
-  const response = await fetch(
+  const response = await authenticationFetch(
     `${API_BASE_URL}/seeds/${seedId}`
   );
 
@@ -249,7 +271,7 @@ export async function fetchSeed(seedId) {
 
 // Update an existing seed record
 export async function updateSeed(seedId, payload) {
-  const response = await fetch(
+  const response = await authenticationFetch(
     `${API_BASE_URL}/seeds/${seedId}`,
     {
       method: "PUT",
@@ -269,7 +291,7 @@ export async function updateSeed(seedId, payload) {
 
 // Delete a seed record
 export async function deleteSeed(seedId) {
-  const response = await fetch(
+  const response = await authenticationFetch(
     `${API_BASE_URL}/seeds/${seedId}`,
     {
       method: "DELETE"
@@ -289,7 +311,7 @@ export async function uploadRecordImages(recordId, files, category, caption = ""
     formData.append("caption", caption);
   }
 
-  const response = await fetch(`${API_BASE_URL}/harvest-records/${recordId}/images`, {
+  const response = await authenticationFetch(`${API_BASE_URL}/harvest-records/${recordId}/images`, {
     method: "POST",
     body: formData
   });
@@ -302,7 +324,7 @@ export async function uploadRecordImages(recordId, files, category, caption = ""
 }
 
 export async function deleteRecordImage(imageId) {
-  const response = await fetch(`${API_BASE_URL}/harvest-records/images/${imageId}`, {
+  const response = await authenticationFetch(`${API_BASE_URL}/harvest-records/images/${imageId}`, {
     method: "DELETE"
   });
 
